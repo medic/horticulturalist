@@ -39,7 +39,8 @@ db.get(DDOC)
         timeout: false,
       })
       .on('change', change => {
-        processDdoc(change.doc);
+        processDdoc(change.doc)
+          .catch(fatality);
       })
       .on('error', fatality);
   })
@@ -51,7 +52,7 @@ function processDdoc(ddoc) {
   const changedApps = getChangedApps(ddoc);
 
   if(changedApps.length) {
-    lockfile.wait()
+    return lockfile.wait()
 
       .then(() => console.log('Unzipping changed apps…', changedApps))
       .then(() => unzipChangedApps(changedApps))
@@ -69,11 +70,19 @@ function processDdoc(ddoc) {
       .then(() => apps.start())
       .then(() => console.log('All apps started.'))
 
-      .then(() => lockfile.release())
-
-      .catch(fatality);
-  } else console.log('No apps have changed.');
+      .then(() => lockfile.release());
+  } else {
+    console.log('No apps have changed.');
+    return Promise.resolve();
+  }
 }
+
+
+const appNameFromModule = module =>
+  module.substring(0, module.lastIndexOf('-'));
+
+const appNotAlreadyUnzipped = app =>
+  !fs.existsSync(path(app.name, app.digest));
 
 const getChangedApps = ddoc =>
   ddoc.node_modules
@@ -88,11 +97,7 @@ const moduleToApp = (ddoc, module) =>
     digest: ddoc._attachments[module].digest,
   });
 
-const appNotAlreadyUnzipped = app =>
-  !fs.existsSync(path(app.name, app.digest));
-
-const appNameFromModule = module =>
-  module.substring(0, module.lastIndexOf('-'));
+const path = (app, version) => Path.resolve(DEPLOYMENTS_DIR, app, version);
 
 const unzipChangedApps = changedApps =>
   Promise.all(changedApps.map(app => db.getAttachment(DDOC, app.attachmentName)
@@ -118,7 +123,6 @@ const updateSymlinkAndRemoveOldVersion = changedApps =>
     return Promise.resolve();
   }));
 
-const path = (app, version) => Path.resolve(DEPLOYMENTS_DIR, app, version);
 
 function fatality(err) {
   console.error(err);
