@@ -1,4 +1,4 @@
-const child_process = require('child_process');
+const apps = require('./apps');
 const decompress = require('decompress');
 const fs = require('fs-extra');
 const lockfile = require('./lockfile');
@@ -6,7 +6,6 @@ const Path = require('path');
 const PouchDB = require('pouchdb');
 
 
-const APPS = [ 'medic-api', 'medic-sentinel' ];
 const COUCH_URL = process.env.COUCH_URL;
 const DEPLOYMENTS_DIR = 'deployments';
 const DDOC = '_design/medic';
@@ -58,16 +57,16 @@ function processDdoc(ddoc) {
       .then(() => unzipChangedApps(changedApps))
       .then(() => console.log('Changed apps unzipped.'))
 
-      .then(() => console.log('Stopping all apps…', APPS))
-      .then(() => stopApps())
+      .then(() => console.log('Stopping all apps…', apps.APPS))
+      .then(() => apps.stop())
       .then(() => console.log('All apps stopped.'))
 
       .then(() => console.log('Updating symlinks for changed apps…', changedApps))
       .then(() => updateSymlinkAndRemoveOldVersion(changedApps))
       .then(() => console.log('.'))
 
-      .then(() => console.log('Starting all apps…', APPS))
-      .then(() => startApps())
+      .then(() => console.log('Starting all apps…', apps.APPS))
+      .then(() => apps.start())
       .then(() => console.log('All apps started.'))
 
       .then(() => lockfile.release())
@@ -118,21 +117,6 @@ const updateSymlinkAndRemoveOldVersion = changedApps =>
 
     return Promise.resolve();
   }));
-
-const stopApps = () =>
-  Promise.all(APPS.map(app => exec(`svc-stop ${app}`)));
-
-const startApps = () =>
-  APPS.reduce(
-      (p, app) => p.then(exec(`svc-start ${app}`)),
-      Promise.resolve());
-
-const exec = cmd =>
-  new Promise((resolve, reject) =>
-    child_process.exec(cmd, err => {
-      if(err) reject(err);
-      else resolve(err);
-    }));
 
 const path = (app, version) => Path.resolve(DEPLOYMENTS_DIR, app, version);
 
