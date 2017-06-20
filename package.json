@@ -1,0 +1,17 @@
+{
+  "name": "horticulturalist",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "./node_modules/jshint/bin/jshint src/*.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "decompress": "^4.2.0",
+    "jshint": "^2.9.4",
+    "lockfile": "^1.0.3",
+    "pouchdb": "^6.2.0"
+  }
+}
