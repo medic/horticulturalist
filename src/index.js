@@ -1,17 +1,20 @@
 const child_process = require('child_process');
 const decompress = require('decompress');
 const fs = require('fs-extra');
+const lockfile = require('lockfile');
 const Path = require('path');
 const PouchDB = require('pouchdb');
-const lockfile = require('lockfile');
 
+
+const APPS = [ 'medic-api', 'medic-sentinel' ];
+const COUCH_URL = process.env.COUCH_URL;
+const DEPLOYMENTS_DIR = 'deployments';
+const DDOC = '_design/medic';
 const LOCK_FILE = 'horticulturalist.lock';
 
-const COUCH_URL = 'http://admin:pass@localhost:5984/medic';
-const DDOC = '_design/medic';
-const APPS = [ 'medic-api', 'medic-sentinel' ];
 
-const DEPLOYMENTS_DIR = 'deployments';
+if(!COUCH_URL) throw new Error('COUCH_URL env var not set.');
+
 
 try {
   fs.mkdirSync(DEPLOYMENTS_DIR);
