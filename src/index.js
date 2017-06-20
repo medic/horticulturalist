@@ -1,5 +1,7 @@
+const child_process = require('child_process');
 const decompress = require('decompress');
-const fs = require('fs');
+const fs = require('fs-extra');
+const Path = require('path');
 const PouchDB = require('pouchdb');
 const lockfile = require('lockfile');
 
@@ -9,8 +11,16 @@ const COUCH_URL = 'http://admin:pass@localhost:5984/medic';
 const DDOC = '_design/medic';
 const APPS = [ 'medic-api', 'medic-sentinel' ];
 
+const DEPLOYMENTS_DIR = 'deployments';
+
+try {
+  fs.mkdirSync(DEPLOYMENTS_DIR);
+} catch(e) {
+  if(e.code !== 'EEXIST') throw e;
+}
+
 if(lockFileExists()) {
-  throw new Error('Lock file already exists.  Cannot start horticulturalisting.');
+  throw new Error('Lock file already exists.  Cannot start horticulturalising.');
 }
 
 const db = new PouchDB(COUCH_URL);
@@ -27,7 +37,6 @@ db.get(DDOC)
         timeout: false,
       })
       .on('change', change => {
-        console.log('change listener fired for', JSON.stringify(Object.keys(change)));
         processDdoc(change.doc);
       })
       .on('error', fatality);
@@ -36,33 +45,49 @@ db.get(DDOC)
 
 function fatality(err) {
   console.error(err);
-  process.exit(1);
+  releaseLock()
+    .then(() => process.exit(1));
+}
+
+function releaseLock() {
+  return new Promise(resolve =>
+    lockfile.unlock(LOCK_FILE, err => {
+      if(err) {
+        console.error(err);
+        process.exit(1);
+      } else resolve();
+    }));
 }
 
 function processDdoc(ddoc) {
-  console.log('processDdoc()');
-
+  console.log('Processing ddoc...');
   const changedApps = getChangedApps(ddoc);
-
-  console.log('processDdoc()', 'changed:', changedApps);
 
   if(changedApps.length) {
     waitForLock()
+
+      .then(() => console.log('Unzipping changed apps…', changedApps))
       .then(() => unzipChangedApps(changedApps))
+      .then(() => console.log('Changed apps unzipped.'))
+
+      .then(() => console.log('Stopping all apps…', APPS))
       .then(() => stopApps())
-      .then(() => updateSymLinks(changedApps))
+      .then(() => console.log('All apps stopped.'))
+
+      .then(() => console.log('Updating symlinks for changed apps…', changedApps))
+      .then(() => updateSymlinkAndRemoveOldVersion(changedApps))
+      .then(() => console.log('.'))
+
+      .then(() => console.log('Starting all apps…', APPS))
       .then(() => startApps())
-      .then(() => cleanUpOldApps(ddoc))
+      .then(() => console.log('All apps started.'))
+
+      .then(() => releaseLock())
+
       .catch(fatality);
-  }
+  } else console.log('No apps have changed.');
 }
 
-const cleanUpOldApps = ddoc =>
-  Promise.all(ddoc.node_modules
-    .split(',')
-    .map(module => {
-      // TODO delete app dirs which do not match the current digest
-    }));
 
 function lockFileExists() {
   return lockfile.checkSync(LOCK_FILE);
@@ -80,7 +105,7 @@ const getChangedApps = ddoc =>
   ddoc.node_modules
     .split(',')
     .map(module => moduleToApp(ddoc, module))
-    .filter(appAlreadyUnzipped);
+    .filter(appNotAlreadyUnzipped);
 
 const moduleToApp = (ddoc, module) =>
   ({
@@ -89,8 +114,8 @@ const moduleToApp = (ddoc, module) =>
     digest: ddoc._attachments[module].digest,
   });
 
-const appAlreadyUnzipped = app =>
-  fs.existsSync(path(app.name, app.digest));
+const appNotAlreadyUnzipped = app =>
+  !fs.existsSync(path(app.name, app.digest));
 
 const appNameFromModule = module =>
   module.substring(0, module.lastIndexOf('-'));
@@ -99,9 +124,25 @@ const unzipChangedApps = changedApps =>
   Promise.all(changedApps.map(app => db.getAttachment(DDOC, app.attachmentName)
     .then(attachment => decompress(attachment, path(app.name, app.digest)))));
 
-const updateSymLinks = changedApps =>
-  Promise.all(changedApps.map(app =>
-      fs.symlinkSync(path(app.name, 'live'), path(app.name, app.digest))));
+const updateSymlinkAndRemoveOldVersion = changedApps =>
+  Promise.all(changedApps.map(app => {
+    const livePath = path(app.name, 'live');
+
+    if(fs.existsSync(livePath)) {
+      const linkString = fs.readlinkSync(livePath);
+
+      if(fs.existsSync(linkString)) {
+        console.log(`Deleting old ${app} from ${linkString}…`);
+        fs.removeSync(linkString);
+      } else console.log(`Old app not found at ${linkString}.`);
+
+      fs.unlinkSync(livePath);
+    }
+
+    fs.symlinkSync(path(app.name, app.digest), livePath);
+
+    return Promise.resolve();
+  }));
 
 const stopApps = () =>
   Promise.all(APPS.map(app => exec(`svc-stop ${app}`)));
@@ -109,7 +150,7 @@ const stopApps = () =>
 const startApps = () =>
   APPS.reduce(
       (p, app) => p.then(exec(`svc-start ${app}`)),
-      Promise.resolve);
+      Promise.resolve());
 
 const exec = cmd =>
   new Promise((resolve, reject) =>
@@ -118,4 +159,4 @@ const exec = cmd =>
       else resolve(err);
     }));
 
-const path = (app, version) => `${app}/${version}`;
+const path = (app, version) => Path.resolve(DEPLOYMENTS_DIR, app, version);
