@@ -1,7 +1,7 @@
 const child_process = require('child_process');
 const decompress = require('decompress');
 const fs = require('fs-extra');
-const lockfile = require('lockfile');
+const lockfile = require('./lockfile');
 const Path = require('path');
 const PouchDB = require('pouchdb');
 
@@ -10,7 +10,6 @@ const APPS = [ 'medic-api', 'medic-sentinel' ];
 const COUCH_URL = process.env.COUCH_URL;
 const DEPLOYMENTS_DIR = 'deployments';
 const DDOC = '_design/medic';
-const LOCK_FILE = 'horticulturalist.lock';
 
 
 if(!COUCH_URL) throw new Error('COUCH_URL env var not set.');
@@ -22,9 +21,10 @@ try {
   if(e.code !== 'EEXIST') throw e;
 }
 
-if(lockFileExists()) {
-  throw new Error('Lock file already exists.  Cannot start horticulturalising.');
+if(lockfile.exists()) {
+  throw new Error(`Lock file already exists at ${lockfile.path()}.  Cannot start horticulturalising.`);
 }
+
 
 const db = new PouchDB(COUCH_URL);
 
@@ -46,28 +46,13 @@ db.get(DDOC)
   })
   .catch(fatality);
 
-function fatality(err) {
-  console.error(err);
-  releaseLock()
-    .then(() => process.exit(1));
-}
-
-function releaseLock() {
-  return new Promise(resolve =>
-    lockfile.unlock(LOCK_FILE, err => {
-      if(err) {
-        console.error(err);
-        process.exit(1);
-      } else resolve();
-    }));
-}
 
 function processDdoc(ddoc) {
   console.log('Processing ddoc...');
   const changedApps = getChangedApps(ddoc);
 
   if(changedApps.length) {
-    waitForLock()
+    lockfile.wait()
 
       .then(() => console.log('Unzipping changed apps…', changedApps))
       .then(() => unzipChangedApps(changedApps))
@@ -85,24 +70,11 @@ function processDdoc(ddoc) {
       .then(() => startApps())
       .then(() => console.log('All apps started.'))
 
-      .then(() => releaseLock())
+      .then(() => lockfile.release())
 
       .catch(fatality);
   } else console.log('No apps have changed.');
 }
-
-
-function lockFileExists() {
-  return lockfile.checkSync(LOCK_FILE);
-}
-
-const waitForLock = () =>
-  new Promise((resolve, reject) => {
-    lockfile.lock(LOCK_FILE, err => {
-      if(err) reject(err);
-      else resolve();
-    });
-  });
 
 const getChangedApps = ddoc =>
   ddoc.node_modules
@@ -163,3 +135,9 @@ const exec = cmd =>
     }));
 
 const path = (app, version) => Path.resolve(DEPLOYMENTS_DIR, app, version);
+
+function fatality(err) {
+  console.error(err);
+  lockfile.release()
+    .then(() => process.exit(1));
+}
