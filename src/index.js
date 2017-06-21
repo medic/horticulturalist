@@ -105,7 +105,7 @@ const unzipChangedApps = changedApps =>
 
 const updateSymlinkAndRemoveOldVersion = changedApps =>
   Promise.all(changedApps.map(app => {
-    const livePath = path(app.name, 'live');
+    const livePath = `/srv/software/${app.name}/current`;
 
     if(fs.existsSync(livePath)) {
       const linkString = fs.readlinkSync(livePath);
