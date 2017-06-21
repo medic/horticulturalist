@@ -2,7 +2,7 @@ const lockfile = require('lockfile');
 const os = require('os');
 const path = require('path');
 
-const LOCK_FILE = path.join(os.homedir(), '.horticulturalist/horticulturalist.lock');
+const LOCK_FILE = path.join(os.homedir(), '.horticulturalist.lock');
 
 
 function lockFileExists() {

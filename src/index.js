@@ -2,20 +2,17 @@ const apps = require('./apps');
 const decompress = require('decompress');
 const fs = require('fs-extra');
 const lockfile = require('./lockfile');
-const os = require('os');
 const Path = require('path');
 const PouchDB = require('pouchdb');
 
 
 const COUCH_URL = process.env.COUCH_URL;
-const DEPLOYMENTS_DIR = Path.join(os.homedir(), '.horticulturalist/deployments');
 const DDOC = '_design/medic';
 
 
 if(!COUCH_URL) throw new Error('COUCH_URL env var not set.');
 
 
-fs.mkdirpSync(DEPLOYMENTS_DIR);
 
 if(lockfile.exists()) {
   throw new Error(`Lock file already exists at ${lockfile.path()}.  Cannot start horticulturalising.`);
@@ -79,7 +76,7 @@ const appNameFromModule = module =>
   module.substring(0, module.lastIndexOf('-'));
 
 const appNotAlreadyUnzipped = app =>
-  !fs.existsSync(path(app.name, app.digest));
+  !fs.existsSync(deployPath(app));
 
 const getChangedApps = ddoc =>
   ddoc.node_modules
@@ -94,15 +91,15 @@ const moduleToApp = (ddoc, module) =>
     digest: ddoc._attachments[module].digest,
   });
 
-const path = (app, version) => Path.resolve(DEPLOYMENTS_DIR, app, version);
+const deployPath = (app, identifier) => Path.join('/srv/software', app.name, identifier || app.digest);
 
 const unzipChangedApps = changedApps =>
   Promise.all(changedApps.map(app => db.getAttachment(DDOC, app.attachmentName)
-    .then(attachment => decompress(attachment, path(app.name, app.digest)))));
+    .then(attachment => decompress(attachment, deployPath(app)))));
 
 const updateSymlinkAndRemoveOldVersion = changedApps =>
   Promise.all(changedApps.map(app => {
-    const livePath = `/srv/software/${app.name}/current`;
+    const livePath = deployPath(app, 'current');
 
     if(fs.existsSync(livePath)) {
       const linkString = fs.readlinkSync(livePath);
@@ -115,7 +112,7 @@ const updateSymlinkAndRemoveOldVersion = changedApps =>
       fs.unlinkSync(livePath);
     }
 
-    fs.symlinkSync(path(app.name, app.digest), livePath);
+    fs.symlinkSync(deployPath(app), livePath);
 
     return Promise.resolve();
   }));
