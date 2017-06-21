@@ -8,7 +8,7 @@ const PouchDB = require('pouchdb');
 
 
 const COUCH_URL = process.env.COUCH_URL;
-const DEPLOYMENTS_DIR = Path.join(os.homedir(), '.horticulturalising/deployments');
+const DEPLOYMENTS_DIR = Path.join(os.homedir(), '.horticulturalist/deployments');
 const DDOC = '_design/medic';
 
 
