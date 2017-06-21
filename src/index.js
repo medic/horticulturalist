@@ -2,12 +2,13 @@ const apps = require('./apps');
 const decompress = require('decompress');
 const fs = require('fs-extra');
 const lockfile = require('./lockfile');
+const os = require('os');
 const Path = require('path');
 const PouchDB = require('pouchdb');
 
 
 const COUCH_URL = process.env.COUCH_URL;
-const DEPLOYMENTS_DIR = 'deployments';
+const DEPLOYMENTS_DIR = Path.join(os.homedir(), '.horticulturalising/deployments');
 const DDOC = '_design/medic';
 
 
