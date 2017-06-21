@@ -12,11 +12,11 @@ const exec = cmd =>
 
 const startApps = () =>
   APPS.reduce(
-      (p, app) => p.then(exec(`svc-start ${app}`)),
+      (p, app) => p.then(exec(`sudo svc-start ${app}`)),
       Promise.resolve());
 
 const stopApps = () =>
-  Promise.all(APPS.map(app => exec(`svc-stop ${app}`)));
+  Promise.all(APPS.map(app => exec(`sudo svc-stop ${app}`)));
 
 module.exports = {
   APPS: APPS,
