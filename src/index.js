@@ -15,11 +15,7 @@ const DDOC = '_design/medic';
 if(!COUCH_URL) throw new Error('COUCH_URL env var not set.');
 
 
-try {
-  fs.mkdirSync(DEPLOYMENTS_DIR);
-} catch(e) {
-  if(e.code !== 'EEXIST') throw e;
-}
+fs.mkdirpSync(DEPLOYMENTS_DIR);
 
 if(lockfile.exists()) {
   throw new Error(`Lock file already exists at ${lockfile.path()}.  Cannot start horticulturalising.`);
