@@ -95,7 +95,12 @@ const deployPath = (app, identifier) => Path.join('/srv/software', app.name, ide
 
 const unzipChangedApps = changedApps =>
   Promise.all(changedApps.map(app => db.getAttachment(DDOC, app.attachmentName)
-    .then(attachment => decompress(attachment, deployPath(app)))));
+    .then(attachment => decompress(attachment, deployPath(app), {
+      map: file => {
+        file.path = file.path.replace(/^package/, '');
+        return file;
+      },
+    }))));
 
 const updateSymlinkAndRemoveOldVersion = changedApps =>
   Promise.all(changedApps.map(app => {
