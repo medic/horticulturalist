@@ -98,17 +98,17 @@ const deployPath = (app, identifier) => {
 };
 
 const unzipChangedApps = changedApps =>
-  Promise.all(changedApps.map(app => db.getAttachment(DDOC, app.attachmentName)
-    .then(attachment => {
-      decompress(attachment, deployPath(app), {
-        map: file => {
-          file.path = file.path.replace(/^package/, '');
-          return file;
-        },
-      });
-      return app;
-    })
-    .then(app => chown(deployPath(app), app.name))));
+  Promise.all(changedApps.map(app =>
+    db.getAttachment(DDOC, app.attachmentName)
+      .then(attachment =>
+        decompress(attachment, deployPath(app), {
+          map: file => {
+            file.path = file.path.replace(/^package/, '');
+            return file;
+          },
+        })
+      )
+      .then(() => chown(deployPath(app), app.name))));
 
 const updateSymlinkAndRemoveOldVersion = changedApps =>
   Promise.all(changedApps.map(app => {
