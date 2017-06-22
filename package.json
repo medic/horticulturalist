@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "chown": "^0.1.1",
     "decompress": "^4.2.0",
     "fs-extra": "^3.0.1",
     "jshint": "^2.9.4",
