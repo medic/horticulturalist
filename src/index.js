@@ -92,7 +92,10 @@ const moduleToApp = (ddoc, module) =>
     digest: ddoc._attachments[module].digest,
   });
 
-const deployPath = (app, identifier) => Path.join('/srv/software', app.name, identifier || app.digest);
+const deployPath = (app, identifier) => {
+  identifier = identifier || app.digest.replace(/\//g, '');
+  return Path.join('/srv/software', app.name, identifier);
+};
 
 const unzipChangedApps = changedApps =>
   Promise.all(changedApps.map(app => db.getAttachment(DDOC, app.attachmentName)
