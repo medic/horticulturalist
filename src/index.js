@@ -118,7 +118,7 @@ const updateSymlinkAndRemoveOldVersion = changedApps =>
       const linkString = fs.readlinkSync(livePath);
 
       if(fs.existsSync(linkString)) {
-        console.log(`Deleting old ${app} from ${linkString}…`);
+        console.log(`Deleting old ${app.name} from ${linkString}…`);
         fs.removeSync(linkString);
       } else console.log(`Old app not found at ${linkString}.`);
 
