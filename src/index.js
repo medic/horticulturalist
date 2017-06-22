@@ -105,7 +105,7 @@ const unzipChangedApps = changedApps =>
       });
       return app;
     })
-    .then(app => chown(deployPath(app), app.name, app.name))));
+    .then(app => chown(deployPath(app), app.name))));
 
 const updateSymlinkAndRemoveOldVersion = changedApps =>
   Promise.all(changedApps.map(app => {
