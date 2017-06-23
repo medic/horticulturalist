@@ -6,3 +6,7 @@ Watch your ddoc and pull out [`medic-api`](https://github.com/medic/medic-api) a
 # Usage
 
 	COUCH_URL=http://admin:pass@localhost:5984/medic node src/index.js
+
+# TODO
+
+* add local mode for horticulturalist to manage api and optionally sentinel locally
