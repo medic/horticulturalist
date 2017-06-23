@@ -80,10 +80,12 @@ const appNotAlreadyUnzipped = app =>
   !fs.existsSync(deployPath(app));
 
 const getChangedApps = ddoc =>
-  ddoc.node_modules
-    .split(',')
-    .map(module => moduleToApp(ddoc, module))
-    .filter(appNotAlreadyUnzipped);
+  ddoc.node_modules ?
+    ddoc.node_modules
+        .split(',')
+        .map(module => moduleToApp(ddoc, module))
+        .filter(appNotAlreadyUnzipped) :
+    [];
 
 const moduleToApp = (ddoc, module) =>
   ({
