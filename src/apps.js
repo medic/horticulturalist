@@ -12,7 +12,7 @@ const exec = cmd =>
 
 const startApps = () =>
   APPS.reduce(
-      (p, app) => p.then(exec(`svc-start ${app}`)),
+      (p, app) => p.then(() => exec(`svc-start ${app}`)),
       Promise.resolve());
 
 const stopApps = () =>
