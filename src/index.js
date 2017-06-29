@@ -1,26 +1,46 @@
-const apps = require('./apps');
+const Apps = require('./apps');
 const chown = require('chown');
 const decompress = require('decompress');
 const fs = require('fs-extra');
 const lockfile = require('./lockfile');
+const os = require('os');
 const Path = require('path');
 const PouchDB = require('pouchdb');
 
+const MODES = {
+  local: {
+    chown_apps: false,
+    deployments: os.homedir() + '/.horticulturalist/deployments',
+    start: `cd ${os.homedir()}/.horticulturalist/deployments/medic-api/current && node server.js HORTICULTURALIST_APP={{app}}`,
+    stop: 'pkill -f HORTICULTURALIST_APP={{app}} || true',
+  },
+  medic_os: {
+    chown_apps: true,
+    deployments: '/srv/software',
+    start: 'svc-start {{app}}',
+    stop: 'svc-stop {{app}}',
+  },
+};
+
+const args = process.argv.slice(2);
+
+const mode = args.includes('--local') ? MODES.local : MODES.medic_os;
 
 const COUCH_URL = process.env.COUCH_URL;
-const DDOC = '_design/medic';
-
-
 if(!COUCH_URL) throw new Error('COUCH_URL env var not set.');
 
+const DDOC = '_design/medic';
 
 
 if(lockfile.exists()) {
   throw new Error(`Lock file already exists at ${lockfile.path()}.  Cannot start horticulturalising.`);
 }
 
+fs.mkdirs(mode.deployments);
+
 
 const db = new PouchDB(COUCH_URL);
+const apps = Apps(mode.start, mode.stop);
 
 db.get(DDOC)
   .then(processDdoc)
@@ -96,7 +116,7 @@ const moduleToApp = (ddoc, module) =>
 
 const deployPath = (app, identifier) => {
   identifier = identifier || app.digest.replace(/\//g, '');
-  return Path.join('/srv/software', app.name, identifier);
+  return Path.join(mode.deployments, app.name, identifier);
 };
 
 const unzipChangedApps = changedApps =>
@@ -110,7 +130,7 @@ const unzipChangedApps = changedApps =>
           },
         })
       )
-      .then(() => chown(deployPath(app), app.name))));
+      .then(() => mode.chown_apps && chown(deployPath(app), app.name))));
 
 const updateSymlinkAndRemoveOldVersion = changedApps =>
   Promise.all(changedApps.map(app => {

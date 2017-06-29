@@ -3,23 +3,28 @@ const child_process = require('child_process');
 const APPS = [ 'medic-api', 'medic-sentinel' ];
 
 
-const exec = cmd =>
-  new Promise((resolve, reject) =>
+const execForApp = (cmd, app) => {
+  cmd = cmd.replace(/{{app}}/g, app);
+
+  return new Promise((resolve, reject) =>
     child_process.exec(cmd, err => {
       if(err) reject(err);
       else resolve(err);
     }));
+};
 
-const startApps = () =>
-  APPS.reduce(
-      (p, app) => p.then(exec(`svc-start ${app}`)),
-      Promise.resolve());
+module.exports = (startCmd, stopCmd) => {
+  const startApps = () =>
+    APPS.reduce(
+        (p, app) => p.then(execForApp(startCmd, app)),
+        Promise.resolve());
 
-const stopApps = () =>
-  Promise.all(APPS.map(app => exec(`svc-stop ${app}`)));
+  const stopApps = () =>
+    Promise.all(APPS.map(app => execForApp(stopCmd, app)));
 
-module.exports = {
-  APPS: APPS,
-  start: startApps,
-  stop: stopApps,
+  return {
+    APPS: APPS,
+    start: startApps,
+    stop: stopApps,
+  };
 };
