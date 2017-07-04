@@ -16,7 +16,10 @@ const execForApp = (cmd, app) => {
 module.exports = (startCmd, stopCmd) => {
   const startApps = () =>
     APPS.reduce(
-        (p, app) => p.then(() => execForApp(startCmd, app)),
+        (p, app) => p
+          .then(() => console.log(`Starting app: ${app} with command: ${startCmd}…`))
+          .then(() => execForApp(startCmd, app))
+          .then(() => console.log(`Started: ${app}`)),
         Promise.resolve());
 
   const stopApps = () =>
