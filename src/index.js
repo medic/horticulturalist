@@ -2,6 +2,7 @@
 const Apps = require('./apps');
 const chown = require('chown');
 const decompress = require('decompress');
+const fatality = require('./fatality');
 const fs = require('fs-extra');
 const lockfile = require('./lockfile');
 const os = require('os');
@@ -15,12 +16,14 @@ PouchDB.plugin(require('pouchdb-adapter-http'));
 const MODES = {
   local: {
     chown_apps: false,
+    exec_async: true,
     deployments: os.homedir() + '/.horticulturalist/deployments',
-    start: `cd ${os.homedir()}/.horticulturalist/deployments/medic-api/current && node server.js HORTICULTURALIST_APP={{app}} &`,
+    start: `cd ${os.homedir()}/.horticulturalist/deployments/medic-api/current && node server.js HORTICULTURALIST_APP={{app}}`,
     stop: 'pgrep -f HORTICULTURALIST_APP={{app}} | sed 1d | xargs kill || true',
   },
   medic_os: {
     chown_apps: true,
+    exec_async: false,
     deployments: '/srv/software',
     start: 'svc-start {{app}}',
     stop: 'svc-stop {{app}}',
@@ -45,7 +48,7 @@ fs.mkdirs(mode.deployments);
 
 
 const db = new PouchDB(COUCH_URL);
-const apps = Apps(mode.start, mode.stop);
+const apps = Apps(mode.start, mode.stop, mode.exec_async);
 
 db.get(DDOC)
   .then(processDdoc)
@@ -157,10 +160,3 @@ const updateSymlinkAndRemoveOldVersion = changedApps =>
 
     return Promise.resolve();
   }));
-
-
-function fatality(err) {
-  console.error(err);
-  lockfile.release()
-    .then(() => process.exit(1));
-}

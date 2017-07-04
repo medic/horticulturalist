@@ -1,25 +1,32 @@
 const child_process = require('child_process');
+const fatality = require('./fatality');
 
 const APPS = [ 'medic-api', 'medic-sentinel' ];
 
 
-const execForApp = (cmd, app) => {
-  cmd = cmd.replace(/{{app}}/g, app);
+module.exports = (startCmd, stopCmd, async) => {
 
-  return new Promise((resolve, reject) =>
-    child_process.exec(cmd, err => {
-      if(err) reject(err);
-      else resolve(err);
-    }));
-};
+  const execForApp = (cmd, app) => {
+    cmd = cmd.replace(/{{app}}/g, app);
 
-module.exports = (startCmd, stopCmd) => {
+    if(async) {
+      child_process.exec(cmd, err => err && fatality(err));
+      return Promise.resolve();
+    } else {
+      return new Promise((resolve, reject) =>
+        child_process.exec(cmd, err => {
+          if(err) reject(err);
+          else resolve(err);
+        }));
+    }
+  };
+
   const startApps = () =>
     APPS.reduce(
         (p, app) => p
           .then(() => console.log(`Starting app: ${app} with command: ${startCmd}…`))
           .then(() => execForApp(startCmd, app))
-          .then(() => console.log(`Started: ${app}`)),
+          .then(() => console.log(`Started: ${app} in the background.`)),
         Promise.resolve());
 
   const stopApps = () =>
