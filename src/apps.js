@@ -10,7 +10,12 @@ module.exports = (startCmd, stopCmd, async) => {
     cmd = cmd.replace(/{{app}}/g, app);
 
     if(async) {
-      child_process.exec(cmd, err => err && fatality(err));
+      child_process.exec(cmd, err => {
+        if(err) {
+          stopApps()
+            .then(() => fatality(err));
+        }
+      });
       return Promise.resolve();
     } else {
       return new Promise((resolve, reject) =>
