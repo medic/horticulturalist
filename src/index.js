@@ -18,7 +18,7 @@ const MODES = {
     chown_apps: false,
     exec_async: true,
     deployments: os.homedir() + '/.horticulturalist/deployments',
-    start: `cd ${os.homedir()}/.horticulturalist/deployments/medic-api/current && node server.js HORTICULTURALIST_APP={{app}}`,
+    start: `cd ${os.homedir()}/.horticulturalist/deployments/medic-api/current && node server.js HORTICULTURALIST_APP={{app}} && sleep 1`,
     stop: 'pgrep -f HORTICULTURALIST_APP={{app}} | sed 1d | xargs kill || true',
   },
   medic_os: {
