@@ -32,6 +32,7 @@ module.exports = (startCmd, stopCmd, async) => {
         (p, app) => p
           .then(() => console.log(`Starting app: ${app} with command: ${startCmd}…`))
           .then(() => execForApp(startCmd, app))
+          .then(() => async && sleep(3))
           .then(() => console.log(`Started: ${app} in the background.`)),
         Promise.resolve());
 
@@ -44,3 +45,6 @@ module.exports = (startCmd, stopCmd, async) => {
     stop: stopApps,
   };
 };
+
+const sleep = seconds => new Promise(resolve =>
+  setTimeout(resolve, seconds * 1000));
