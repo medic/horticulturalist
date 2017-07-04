@@ -6,6 +6,7 @@ const fs = require('fs-extra');
 const lockfile = require('./lockfile');
 const os = require('os');
 const Path = require('path');
+const redact = require('redact-basic-auth');
 
 // Include pouch in modular form or npm isn't happy
 const PouchDB = require('pouchdb-core');
@@ -49,6 +50,7 @@ const apps = Apps(mode.start, mode.stop);
 db.get(DDOC)
   .then(processDdoc)
   .then(() => {
+    console.log(`Starting change feed listener at ${redact(COUCH_URL)}`);
     db
       .changes({
         live: true,
