@@ -1,6 +1,6 @@
 {
   "name": "horticulturalist",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "",
   "main": "src/index.js",
   "bin": {
