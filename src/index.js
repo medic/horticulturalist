@@ -7,7 +7,7 @@ const lockfile = require('./lockfile');
 const Path = require('path');
 
 // Include pouch in modular form or npm isn't happy
-const PouchDB = require('pouchdb');
+const PouchDB = require('pouchdb-core');
 PouchDB.plugin(require('pouchdb-adapter-http'));
 
 
