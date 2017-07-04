@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 const apps = require('./apps');
 const chown = require('chown');
 const decompress = require('decompress');
