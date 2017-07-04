@@ -12,6 +12,7 @@ module.exports = (startCmd, stopCmd, async) => {
     if(async) {
       child_process.exec(cmd, err => {
         if(err) {
+          console.log(`Error caught when executing: ${app}.  Stopping all apps and quitting horticulturalist.`);
           stopApps()
             .then(() => fatality(err));
         }
