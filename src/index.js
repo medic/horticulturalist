@@ -16,7 +16,7 @@ const MODES = {
     chown_apps: false,
     deployments: os.homedir() + '/.horticulturalist/deployments',
     start: `cd ${os.homedir()}/.horticulturalist/deployments/medic-api/current && node server.js HORTICULTURALIST_APP={{app}}`,
-    stop: 'pkill -f HORTICULTURALIST_APP={{app}} || true',
+    stop: 'pgrep -f HORTICULTURALIST_APP={{app}} | xargs kill || true',
   },
   medic_os: {
     chown_apps: true,
