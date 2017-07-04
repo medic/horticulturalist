@@ -4,7 +4,10 @@ const decompress = require('decompress');
 const fs = require('fs-extra');
 const lockfile = require('./lockfile');
 const Path = require('path');
+
+// Include pouch in modular form or npm isn't happy
 const PouchDB = require('pouchdb');
+PouchDB.plugin(require('pouchdb-adapter-http'));
 
 
 const COUCH_URL = process.env.COUCH_URL;
