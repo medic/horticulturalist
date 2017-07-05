@@ -14,7 +14,7 @@ module.exports = (startCmd, stopCmd, async) => {
         if(err) {
           console.error(`Error caught executing: ${cmd}.  Stopping all apps and quitting horticulturalist.`, err);
           stopApps()
-            .then(() => fatality(`Horticulturalist terminated after exception caught executing ${app}.`));
+            .then(() => fatality(`Horticulturalist terminated after error caught executing ${cmd}.`));
         }
       });
       return Promise.resolve();
