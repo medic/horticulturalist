@@ -33,7 +33,7 @@ module.exports = (startCmd, stopCmd, async) => {
           .then(() => console.log(`Starting app: ${app} with command: ${startCmd}…`))
           .then(() => execForApp(startCmd, app))
           .then(() => async && sleep(3))
-          .then(() => console.log(`Started: ${app} in the background.`)),
+          .then(() => console.log(`Started ${app} in the background.`)),
         Promise.resolve());
 
   const stopApps = () =>
