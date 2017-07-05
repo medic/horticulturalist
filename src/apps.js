@@ -4,27 +4,16 @@ const fatality = require('./fatality');
 const APPS = [ 'medic-api', 'medic-sentinel' ];
 
 
-module.exports = (startCmd, stopCmd, async) => {
+module.exports = (startCmd, stopCmd) => {
 
   const execForApp = (cmd, app) => {
     cmd = cmd.replace(/{{app}}/g, app);
 
-    if(async) {
+    return new Promise((resolve, reject) =>
       child_process.exec(cmd, err => {
-        if(err) {
-          console.error(`Error caught executing: ${cmd}.  Stopping all apps and quitting horticulturalist.`, err);
-          stopApps()
-            .then(() => fatality(`Horticulturalist terminated after error caught executing ${cmd}.`));
-        }
-      });
-      return Promise.resolve();
-    } else {
-      return new Promise((resolve, reject) =>
-        child_process.exec(cmd, err => {
-          if(err) reject(err);
-          else resolve(err);
-        }));
-    }
+        if(err) reject(err);
+        else resolve(err);
+      }));
   };
 
   const startApps = () =>
@@ -32,7 +21,6 @@ module.exports = (startCmd, stopCmd, async) => {
         (p, app) => p
           .then(() => console.log(`Starting app: ${app} with command: ${startCmd}…`))
           .then(() => execForApp(startCmd, app))
-          .then(() => async && sleep(3))
           .then(() => console.log(`Started ${app} in the background.`)),
         Promise.resolve());
 

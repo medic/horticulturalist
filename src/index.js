@@ -16,14 +16,12 @@ PouchDB.plugin(require('pouchdb-adapter-http'));
 const MODES = {
   local: {
     chown_apps: false,
-    exec_async: true,
     deployments: os.homedir() + '/.horticulturalist/deployments',
-    start: `cd ${os.homedir()}/.horticulturalist/deployments/{{app}}/current && node server.js HORTICULTURALIST_APP={{app}}`,
-    stop: 'pgrep -f HORTICULTURALIST_APP={{app}} | sed 1d | xargs kill || true',
+    start: 'horti-svc-start {{app}}',
+    stop: 'horti-svc-stop {{app}}',
   },
   medic_os: {
     chown_apps: true,
-    exec_async: false,
     deployments: '/srv/software',
     start: 'svc-start {{app}}',
     stop: 'svc-stop {{app}}',
@@ -48,7 +46,7 @@ fs.mkdirs(mode.deployments);
 
 
 const db = new PouchDB(COUCH_URL);
-const apps = Apps(mode.start, mode.stop, mode.exec_async);
+const apps = Apps(mode.start, mode.stop);
 
 db.get(DDOC)
   .then(processDdoc)

@@ -1,10 +1,12 @@
 {
   "name": "horticulturalist",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "description": "",
   "main": "src/index.js",
   "bin": {
-    "horti": "src/index.js"
+    "horti": "src/index.js",
+    "horti-svc-start": "bin/svc-start",
+    "horti-svc-stop": "src/svc-stop"
   },
   "scripts": {
     "start": "node src/index.js --local",

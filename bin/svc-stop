@@ -1,0 +1,4 @@
+#!/bin/bash
+app="$1"
+pgrep -f HORTICULTURALIST_APP="$app" | sed 1d | xargs kill || true
+sleep 3

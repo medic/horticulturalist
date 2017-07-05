@@ -1,0 +1,5 @@
+#!/bin/bash
+app="$1"
+cd "~/.horticulturalist/deployments/$app/current" &&
+        node server.js HORTICULTURALIST_APP="$app" &
+sleep 3
