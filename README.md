@@ -5,8 +5,11 @@ Watch your ddoc and pull out [`medic-api`](https://github.com/medic/medic-api) a
 
 # Usage
 
-	COUCH_URL=http://admin:pass@localhost:5984/medic node src/index.js
+## From source
 
-# TODO
+	COUCH_URL=http://admin:pass@localhost:5984/medic node src/index.js --local
 
-* add local mode for horticulturalist to manage api and optionally sentinel locally
+## From `npm`
+
+	npm install horticulturalist
+	COUCH_URL=http://admin:pass@localhost:5984/medic horti --local
