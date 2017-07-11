@@ -10,9 +10,13 @@ module.exports = (startCmd, stopCmd) => {
     cmd = cmd.replace(/{{app}}/g, app);
 
     return new Promise((resolve, reject) =>
-      child_process.exec(cmd, err => {
+      child_process.exec(cmd, (err, stdout, stderr) => {
         if(err) reject(err);
-        else resolve(err);
+        else {
+          console.log(stdout);
+          console.error(stderr);
+          resolve(err);
+        }
       }));
   };
 
