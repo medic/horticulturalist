@@ -76,7 +76,7 @@ function processDdoc(ddoc) {
   if(changedApps.length) {
     return lockfile.wait()
 
-      .then(() => console.log('Unzipping changed apps…', changedApps))
+      .then(() => console.log(`Unzipping changed apps to ${mode.deployments}…`, changedApps))
       .then(() => unzipChangedApps(changedApps))
       .then(() => console.log('Changed apps unzipped.'))
 
