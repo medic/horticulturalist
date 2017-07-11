@@ -123,7 +123,7 @@ const moduleToApp = (ddoc, module) =>
 
 const deployPath = (app, identifier) => {
   identifier = identifier || app.digest.replace(/\//g, '');
-  return Path.join(mode.deployments, app.name, identifier);
+  return Path.resolve(Path.join(mode.deployments, app.name, identifier));
 };
 
 const unzipChangedApps = changedApps =>
