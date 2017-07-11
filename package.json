@@ -9,7 +9,7 @@
     "horti-svc-stop": "bin/svc-stop"
   },
   "scripts": {
-    "start": "node src/index.js --local",
+    "start": "node src/index.js --dev",
     "test": "jshint src/*.js"
   },
   "author": "",

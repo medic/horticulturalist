@@ -7,7 +7,7 @@ Watch your ddoc and pull out [`medic-api`](https://github.com/medic/medic-api) a
 
 ## From source
 
-	COUCH_URL=http://admin:pass@localhost:5984/medic node src/index.js --local
+	COUCH_URL=http://admin:pass@localhost:5984/medic node src/index.js --dev
 
 ## From `npm`
 

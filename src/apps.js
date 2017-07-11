@@ -1,5 +1,4 @@
 const child_process = require('child_process');
-const fatality = require('./fatality');
 
 const APPS = [ 'medic-api', 'medic-sentinel' ];
 
@@ -7,17 +6,15 @@ const APPS = [ 'medic-api', 'medic-sentinel' ];
 module.exports = (startCmd, stopCmd) => {
 
   const execForApp = (cmd, app) => {
-    cmd = cmd.replace(/{{app}}/g, app);
+    cmd = cmd.map(sub => sub.replace(/{{app}}/g, app));
 
-    return new Promise((resolve, reject) =>
-      child_process.exec(cmd, (err, stdout, stderr) => {
-        if(err) reject(err);
-        else {
-          console.log(stdout);
-          console.error(stderr);
-          resolve(err);
-        }
-      }));
+    return new Promise((resolve, reject) => {
+      const proc = child_process.spawn(cmd.shift(), cmd, {
+        stdio: [ 'ignore', process.stdout, process.stderr ],
+      });
+
+      proc.on('close', status => status ? reject(`${app} existed with status ${status}`) : resolve());
+    });
   };
 
   const startApps = () =>
@@ -37,6 +34,3 @@ module.exports = (startCmd, stopCmd) => {
     stop: stopApps,
   };
 };
-
-const sleep = seconds => new Promise(resolve =>
-  setTimeout(resolve, seconds * 1000));

@@ -14,23 +14,30 @@ const PouchDB = require('pouchdb-core');
 PouchDB.plugin(require('pouchdb-adapter-http'));
 
 const MODES = {
+  development: {
+    chown_apps: false,
+    deployments: './temp/deployments',
+    start: [ 'bin/svc-start', './temp/deployments', '{{app}}' ],
+    stop: [ 'bin/svc-stop', '{{app}}' ],
+  },
   local: {
     chown_apps: false,
-    deployments: os.homedir() + '/.horticulturalist/deployments',
-    start: 'horti-svc-start {{app}}',
-    stop: 'horti-svc-stop {{app}}',
+    deployments: `${os.homedir()}/.horticulturalist/deployments`,
+    start: [ 'horti-svc-start', `"${os.homedir()}/.horticulturalist/deployments"`, '{{app}}' ],
+    stop: [ 'horti-svc-stop', '{{app}}' ],
   },
   medic_os: {
     chown_apps: true,
     deployments: '/srv/software',
-    start: 'svc-start {{app}}',
-    stop: 'svc-stop {{app}}',
+    start: ['svc-start', '{{app}}' ],
+    stop: ['svc-stop', '{{app}}' ],
   },
 };
 
 const args = process.argv.slice(2);
 
-const mode = args.includes('--local') ? MODES.local : MODES.medic_os;
+const mode = args.includes('--dev')   ? MODES.development :
+             args.includes('--local') ? MODES.local : MODES.medic_os;
 
 const COUCH_URL = process.env.COUCH_URL;
 if(!COUCH_URL) throw new Error('COUCH_URL env var not set.');

@@ -1,4 +1,7 @@
-#!/bin/bash
+#!/bin/bash -x
 app="$1"
-pgrep -f HORTICULTURALIST_APP="$app" | sed 1d | xargs kill || true
-sleep 3
+
+echo "[$0] Stopping $app..."
+pgrep -f HORTICULTURALIST_APP="$app" | xargs kill || true
+
+echo "[$0] $app stopped."

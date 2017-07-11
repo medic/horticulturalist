@@ -1,5 +1,11 @@
 #!/bin/bash
-app="$1"
-cd "$HOME/.horticulturalist/deployments/$app/current" &&
+deployments="$1"
+app="$2"
+
+app_dir="$deployments/$app/current"
+echo "[$0] Starting $app from $app_dir..."
+
+cd "$app_dir" &&
         node server.js HORTICULTURALIST_APP="$app" &
-sleep 3
+
+echo "[$0] $app started."
