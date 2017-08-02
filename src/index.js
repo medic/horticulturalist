@@ -36,6 +36,12 @@ const MODES = {
 
 const args = process.argv.slice(2);
 
+if(args[0] === '--version') {
+  const version = require('../package').version;
+  console.log(`horticulturalist-${version}`);
+  return;
+}
+
 const mode = args.includes('--dev')   ? MODES.development :
              args.includes('--local') ? MODES.local : MODES.medic_os;
 
