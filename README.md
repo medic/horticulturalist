@@ -5,11 +5,16 @@ Watch your ddoc and pull out [`medic-api`](https://github.com/medic/medic-api) a
 
 # Usage
 
+## From `npm`
+
+	npm install horticulturalist
+	COUCH_NODE_NAME=couchdb@localhost COUCH_URL=http://admin:pass@localhost:5984/medic horti --local --bootstrap
+
 ## From source
 
 	COUCH_URL=http://admin:pass@localhost:5984/medic node src/index.js --dev
 
-## From `npm`
+# Options
 
-	npm install horticulturalist
-	COUCH_URL=http://admin:pass@localhost:5984/medic horti --local
+	--bootstrap
+		Download the latest master build and deploy to the local db at startup.

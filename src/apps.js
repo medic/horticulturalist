@@ -1,4 +1,5 @@
 const child_process = require('child_process');
+const trace = require('./log').trace;
 
 const APPS = [ 'medic-api', 'medic-sentinel' ];
 
@@ -20,9 +21,9 @@ module.exports = (startCmd, stopCmd) => {
   const startApps = () =>
     APPS.reduce(
         (p, app) => p
-          .then(() => console.log(`Starting app: ${app} with command: ${startCmd}…`))
+          .then(() => trace(`Starting app: ${app} with command: ${startCmd}…`))
           .then(() => execForApp(startCmd, app))
-          .then(() => console.log(`Started ${app} in the background.`)),
+          .then(() => trace(`Started ${app} in the background.`)),
         Promise.resolve());
 
   const stopApps = () =>
