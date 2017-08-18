@@ -10,6 +10,7 @@ const os = require('os');
 const Path = require('path');
 const redact = require('redact-basic-auth');
 const trace = require('./log').trace;
+const parseArgs = require('minimist');
 
 // Include pouch in modular form or npm isn't happy
 const PouchDB = require('pouchdb-core');
@@ -45,18 +46,21 @@ const MODES = {
   },
 };
 
-const args = process.argv.slice(2);
+const argv = parseArgs(process.argv);
 
-if(args[0] === '--version') {
+if(argv.version) {
   const version = require('../package').version;
   console.log(`horticulturalist-${version}`);
   return;
 }
 
-const mode = args.includes('--dev')   ? MODES.development :
-             args.includes('--local') ? MODES.local : MODES.medic_os;
+const mode = argv.dev   ? MODES.development :
+             argv.local ? MODES.local : MODES.medic_os;
 
-const shouldBootstrapDdoc = args.includes('--bootstrap');
+let bootstrapDdoc = argv.bootstrap;
+if (bootstrapDdoc === true) {
+  bootstrapDdoc = 'master';
+}
 
 const COUCH_URL = process.env.COUCH_URL;
 if(!COUCH_URL) throw new Error('COUCH_URL env var not set.');
@@ -76,10 +80,10 @@ const apps = Apps(mode.start, mode.stop);
 info('Starting Horticulturalist');
 Promise.resolve()
   // If we're bootstrapping pull down the DDOC, process and deploy it
-  .then(() => shouldBootstrapDdoc && bootstrap())
+  .then(() => bootstrapDdoc && bootstrap())
   .catch(fatality)
   // If we're not boostrapping but we want to start apps do that
-  .then(() => !shouldBootstrapDdoc && mode.startAppsOnStartup && startApps())
+  .then(() => !bootstrapDdoc && mode.startAppsOnStartup && startApps())
   // In case there is an existing staged ddoc to be deployed deal with it
   .then(() => db.get(STAGED_DDOC))
   .catch(err => {
@@ -153,17 +157,17 @@ function processDdoc(ddoc, firstRun) {
 
 
 function bootstrap() {
-  info('Bootstrap requested.');
+  info(`Bootstrap requested. Bootstrapping to ${bootstrapDdoc}`);
   trace(`Fetching new ddoc from ${STAGING_URL}…`);
   return new PouchDB(STAGING_URL)
-    .get('medic:medic:master', { attachments:true }) // TODO parameterise master
+    .get(`medic:medic:${bootstrapDdoc}`, { attachments:true })
     .then(newDdoc => {
       trace('New ddoc fetched.');
       newDdoc._id = STAGED_DDOC;
       newDdoc.deploy_info = {
         timestamp: new Date().toString(),
         user: 'horticulturalist (bootstrap)',
-        version: 'master', // TODO parameterise master
+        version: bootstrapDdoc,
       };
       delete newDdoc._rev;
       trace('Fetching old staged ddoc from local db…');
