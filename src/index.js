@@ -162,7 +162,7 @@ function bootstrap() {
       newDdoc._id = STAGED_DDOC;
       newDdoc.deploy_info = {
         timestamp: new Date().toString(),
-        user: 'horticulturalist',
+        user: 'horticulturalist (bootstrap)',
         version: 'master', // TODO parameterise master
       };
       delete newDdoc._rev;
