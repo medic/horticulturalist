@@ -16,11 +16,7 @@ const parseArgs = require('minimist');
 const PouchDB = require('pouchdb-core');
 PouchDB.plugin(require('pouchdb-adapter-http'));
 
-// const STAGING_URL = 'https://staging.dev.medicmobile.org/_couch/builds';
-
-//////////////////////////////// HACK
-const STAGING_URL = 'http://admin:pass@localhost:5984/builds';
-//////////////////////////////// HACK
+const STAGING_URL = 'https://staging.dev.medicmobile.org/_couch/builds';
 
 const MODES = {
   development: {

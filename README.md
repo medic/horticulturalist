@@ -1,7 +1,7 @@
 Horticulturalist
 ================
 
-Watch your ddoc and pull out [`medic-api`](https://github.com/medic/medic-api) and [`medic-sentinel`](https://github.com/medic/medic-api) updates after `kanso push`.
+Deploys and manages [Medic](github.com/medic/medic-webapp).
 
 # Usage
 
@@ -16,5 +16,5 @@ Watch your ddoc and pull out [`medic-api`](https://github.com/medic/medic-api) a
 
 # Options
 
-	--bootstrap
-		Download the latest master build and deploy to the local db at startup.
+	--bootstrap[=buildname]
+		Download the latest master (or specified) build and deploy to the local db at startup.
