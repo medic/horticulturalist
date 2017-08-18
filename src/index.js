@@ -115,7 +115,7 @@ Promise.resolve()
   .catch(fatality);
 
 
-function processDdoc(ddoc) {
+function processDdoc(ddoc, firstRun) {
   info(`Processing ddoc ${ddoc._id}`);
 
   const changedApps = getChangedApps(ddoc);
@@ -142,7 +142,12 @@ function processDdoc(ddoc) {
       .then(() => lockfile.release());
   } else {
     info('No apps have changed.');
-    return Promise.resolve();
+
+    if (firstRun) {
+      return startApps();
+    } else {
+      return Promise.resolve();
+    }
   }
 }
 
@@ -172,7 +177,7 @@ function bootstrap() {
         .then(() => trace('Uploading new ddoc to local db…'))
         .then(() => db.put(newDdoc))
         .then(() => db.get(STAGED_DDOC, {attachments: true}))
-        .then(ddoc => processDdoc(ddoc))
+        .then(ddoc => processDdoc(ddoc, true))
         .then(() => trace('Bootstrap complete.'));
     });
 }
