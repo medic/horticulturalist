@@ -61,8 +61,8 @@ if (bootstrapDdoc === true) {
 const COUCH_URL = process.env.COUCH_URL;
 if(!COUCH_URL) throw new Error('COUCH_URL env var not set.');
 
-const DDOC = '_design/medic';
-const STAGED_DDOC = '_design/medic:staged';
+const DDOC_ID = '_design/medic';
+const STAGED_DDOC_ID = '_design/medic:staged';
 
 if(lockfile.exists()) {
   throw new Error(`Lock file already exists at ${lockfile.path()}.  Cannot start horticulturalising.`);
@@ -81,7 +81,7 @@ Promise.resolve()
   // If we're not boostrapping but we want to start apps do that
   .then(() => !bootstrapDdoc && mode.startAppsOnStartup && startApps())
   // In case there is an existing staged ddoc to be deployed deal with it
-  .then(() => db.get(STAGED_DDOC))
+  .then(() => db.get(STAGED_DDOC_ID))
   .catch(err => {
     if (err.status !== 404) {
       throw err;
@@ -97,15 +97,15 @@ Promise.resolve()
       .changes({
         live: true,
         since: 'now',
-        doc_ids: [ STAGED_DDOC ],
+        doc_ids: [ STAGED_DDOC_ID ],
         include_docs: true,
         attachments: true,
         timeout: false,
       })
       .on('change', change => {
-        trace(`Change in ${STAGED_DDOC} detected`);
-        if (!change.doc._deleted) {
-            return processDdoc(change.doc).catch(fatality);
+        trace(`Change in ${STAGED_DDOC_ID} detected`);
+        if (!change.deleted) {
+            processDdoc(change.doc).catch(fatality);
         } else {
           trace('Ignoring our own delete');
         }
@@ -159,7 +159,7 @@ function bootstrap() {
     .get(`medic:medic:${bootstrapDdoc}`, { attachments:true })
     .then(newDdoc => {
       trace('New ddoc fetched.');
-      newDdoc._id = STAGED_DDOC;
+      newDdoc._id = STAGED_DDOC_ID;
       newDdoc.deploy_info = {
         timestamp: new Date().toString(),
         user: 'horticulturalist (bootstrap)',
@@ -168,7 +168,7 @@ function bootstrap() {
       delete newDdoc._rev;
       trace('Fetching old staged ddoc from local db…');
       return db
-        .get(STAGED_DDOC)
+        .get(STAGED_DDOC_ID)
         .then(oldDdoc => newDdoc._rev = oldDdoc._rev)
         .catch(err => {
           if (err.status === 404) trace('No old staged ddoc found locally.');
@@ -176,7 +176,7 @@ function bootstrap() {
         })
         .then(() => trace('Uploading new ddoc to local db…'))
         .then(() => db.put(newDdoc))
-        .then(() => db.get(STAGED_DDOC, {attachments: true}))
+        .then(() => db.get(STAGED_DDOC_ID, {attachments: true}))
         .then(ddoc => processDdoc(ddoc, true))
         .then(() => trace('Bootstrap complete.'));
     });
@@ -211,7 +211,7 @@ const moduleToApp = (ddoc, module) =>
   });
 
 const deployDdoc = stagedDdoc => {
-  info(`Deploy staged ddoc ${stagedDdoc._id} to ${DDOC}`);
+  info(`Deploy staged ddoc ${STAGED_DDOC_ID} to ${DDOC_ID}`);
 
   const deletedStagedDdoc = {
     _id: stagedDdoc._id,
@@ -220,7 +220,7 @@ const deployDdoc = stagedDdoc => {
   };
 
   info('Getting currently live DDOC');
-  return db.get(DDOC)
+  return db.get(DDOC_ID)
     .catch(err => {
       if (err.status !== 404) {
         throw err;
@@ -230,7 +230,7 @@ const deployDdoc = stagedDdoc => {
     })
     .then(liveDdoc => {
       info('Preparing staged ddoc for deployment');
-      stagedDdoc._id = DDOC;
+      stagedDdoc._id = DDOC_ID;
 
       if (liveDdoc) {
         stagedDdoc._rev = liveDdoc._rev;
@@ -261,7 +261,7 @@ const deployPath = (app, identifier) => {
 
 const unzipChangedApps = changedApps =>
   Promise.all(changedApps.map(app =>
-    db.getAttachment(STAGED_DDOC, app.attachmentName)
+    db.getAttachment(STAGED_DDOC_ID, app.attachmentName)
       .catch(fatality)
       .then(attachment =>
         decompress(attachment, deployPath(app), {
