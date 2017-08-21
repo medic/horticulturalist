@@ -1,8 +1,9 @@
-const lockfile = require('./lockfile');
+const lockfile = require('./lockfile'),
+      log = require('./log');
 
 module.exports = err => {
-  console.error('********FATAL********');
-  console.error(err);
+  log.error('********FATAL********');
+  log.error(err);
 
   lockfile.release()
     .then(() => process.exit(1));

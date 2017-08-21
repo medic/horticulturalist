@@ -176,6 +176,10 @@ function bootstrap() {
         })
         .then(() => trace('Uploading new ddoc to local db…'))
         .then(() => db.put(newDdoc))
+        // TODO: Getting this again can solve some edge cases based on the state
+        //       of the DB. More testing is required to refactor this code and
+        //       improve its robustness.
+        //       See https://github.com/medic/medic-webapp/issues/3805
         .then(() => db.get(STAGED_DDOC_ID, {attachments: true}))
         .then(ddoc => processDdoc(ddoc, true))
         .then(() => trace('Bootstrap complete.'));
