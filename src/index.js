@@ -10,6 +10,7 @@ const os = require('os');
 const Path = require('path');
 const redact = require('redact-basic-auth');
 const trace = require('./log').trace;
+const parseArgs = require('minimist');
 
 // Include pouch in modular form or npm isn't happy
 const PouchDB = require('pouchdb-core');
@@ -41,24 +42,27 @@ const MODES = {
   },
 };
 
-const args = process.argv.slice(2);
+const argv = parseArgs(process.argv);
 
-if(args[0] === '--version') {
+if(argv.version) {
   const version = require('../package').version;
   console.log(`horticulturalist-${version}`);
   return;
 }
 
-const mode = args.includes('--dev')   ? MODES.development :
-             args.includes('--local') ? MODES.local : MODES.medic_os;
+const mode = argv.dev   ? MODES.development :
+             argv.local ? MODES.local : MODES.medic_os;
 
-const shouldBootstrapDdoc = args.includes('--bootstrap');
+let bootstrapDdoc = argv.bootstrap;
+if (bootstrapDdoc === true) {
+  bootstrapDdoc = 'master';
+}
 
 const COUCH_URL = process.env.COUCH_URL;
 if(!COUCH_URL) throw new Error('COUCH_URL env var not set.');
 
-const DDOC = '_design/medic';
-
+const DDOC_ID = '_design/medic';
+const STAGED_DDOC_ID = '_design/medic:staged';
 
 if(lockfile.exists()) {
   throw new Error(`Lock file already exists at ${lockfile.path()}.  Cannot start horticulturalising.`);
@@ -66,36 +70,54 @@ if(lockfile.exists()) {
 
 fs.mkdirs(mode.deployments);
 
-
 const db = new PouchDB(COUCH_URL);
 const apps = Apps(mode.start, mode.stop);
 
+info('Starting Horticulturalist');
 Promise.resolve()
-  .then(bootstrapDdoc)
-  .then(() => mode.startAppsOnStartup && startApps())
-  .then(() => db.get(DDOC))
-  .then(processDdoc)
+  // If we're bootstrapping pull down the DDOC, process and deploy it
+  .then(() => bootstrapDdoc && bootstrap())
+  .catch(fatality)
+  // If we're not boostrapping but we want to start apps do that
+  .then(() => !bootstrapDdoc && mode.startAppsOnStartup && startApps())
+  // In case there is an existing staged ddoc to be deployed deal with it
+  .then(() => db.get(STAGED_DDOC_ID))
+  .catch(err => {
+    if (err.status !== 404) {
+      throw err;
+    }
+
+    info('No deployments to make upon boot');
+  })
+  .then(ddoc => ddoc && processDdoc(ddoc))
+  // Listen for new staged deployments and process them
   .then(() => {
     info(`Starting change feed listener at ${redact(COUCH_URL)}…`);
     db
       .changes({
         live: true,
         since: 'now',
-        doc_ids: [ DDOC ],
+        doc_ids: [ STAGED_DDOC_ID ],
         include_docs: true,
+        attachments: true,
         timeout: false,
       })
       .on('change', change => {
-        processDdoc(change.doc)
-          .catch(fatality);
+        trace(`Change in ${STAGED_DDOC_ID} detected`);
+        if (!change.deleted) {
+            processDdoc(change.doc).catch(fatality);
+        } else {
+          trace('Ignoring our own delete');
+        }
       })
       .on('error', fatality);
   })
   .catch(fatality);
 
 
-function processDdoc(ddoc) {
-  info('Processing ddoc…');
+function processDdoc(ddoc, firstRun) {
+  info(`Processing ddoc ${ddoc._id}`);
+
   const changedApps = getChangedApps(ddoc);
 
   if(changedApps.length) {
@@ -109,6 +131,8 @@ function processDdoc(ddoc) {
       .then(() => apps.stop())
       .then(() => info('All apps stopped.'))
 
+      .then(() => deployDdoc(ddoc))
+
       .then(() => info('Updating symlinks for changed apps…', changedApps))
       .then(() => updateSymlinkAndRemoveOldVersion(changedApps))
       .then(() => info('Symlinks updated.'))
@@ -118,36 +142,48 @@ function processDdoc(ddoc) {
       .then(() => lockfile.release());
   } else {
     info('No apps have changed.');
-    return Promise.resolve();
+
+    if (firstRun) {
+      return startApps();
+    } else {
+      return Promise.resolve();
+    }
   }
 }
 
 
-function bootstrapDdoc() {
-  if(!shouldBootstrapDdoc) {
-    return info('No bootstrap requested.');
-  } else {
-    info('Bootstrap requested.');
-    trace(`Fetching new ddoc from ${STAGING_URL}…`);
-    return new PouchDB(STAGING_URL)
-      .get('master', { attachments:true })
-      .then(newDdoc => {
-        trace('New ddoc fetched.');
-        newDdoc._id = '_design/medic';
-        delete newDdoc._rev;
-        trace('Fetching old ddoc from local db…');
-        return db
-          .get(DDOC)
-          .then(oldDdoc => newDdoc._rev = oldDdoc._rev)
-          .catch(err => {
-            if(err.status === 404) trace('No old ddoc found locally.');
-            else throw err;
-          })
-          .then(() => trace('Uploading new ddoc to local db…'))
-          .then(() => db.put(newDdoc))
-          .then(() => trace('Bootstrap complete.'));
-      });
-  }
+function bootstrap() {
+  info(`Bootstrap requested. Bootstrapping to ${bootstrapDdoc}`);
+  trace(`Fetching new ddoc from ${STAGING_URL}…`);
+  return new PouchDB(STAGING_URL)
+    .get(`medic:medic:${bootstrapDdoc}`, { attachments:true })
+    .then(newDdoc => {
+      trace('New ddoc fetched.');
+      newDdoc._id = STAGED_DDOC_ID;
+      newDdoc.deploy_info = {
+        timestamp: new Date().toString(),
+        user: 'horticulturalist (bootstrap)',
+        version: bootstrapDdoc,
+      };
+      delete newDdoc._rev;
+      trace('Fetching old staged ddoc from local db…');
+      return db
+        .get(STAGED_DDOC_ID)
+        .then(oldDdoc => newDdoc._rev = oldDdoc._rev)
+        .catch(err => {
+          if (err.status === 404) trace('No old staged ddoc found locally.');
+          else throw err;
+        })
+        .then(() => trace('Uploading new ddoc to local db…'))
+        .then(() => db.put(newDdoc))
+        // TODO: Getting this again can solve some edge cases based on the state
+        //       of the DB. More testing is required to refactor this code and
+        //       improve its robustness.
+        //       See https://github.com/medic/medic-webapp/issues/3805
+        .then(() => db.get(STAGED_DDOC_ID, {attachments: true}))
+        .then(ddoc => processDdoc(ddoc, true))
+        .then(() => trace('Bootstrap complete.'));
+    });
 }
 
 
@@ -178,6 +214,50 @@ const moduleToApp = (ddoc, module) =>
     digest: ddoc._attachments[module].digest,
   });
 
+const deployDdoc = stagedDdoc => {
+  info(`Deploy staged ddoc ${STAGED_DDOC_ID} to ${DDOC_ID}`);
+
+  const deletedStagedDdoc = {
+    _id: stagedDdoc._id,
+    _rev: stagedDdoc._rev,
+    _deleted: true
+  };
+
+  info('Getting currently live DDOC');
+  return db.get(DDOC_ID)
+    .catch(err => {
+      if (err.status !== 404) {
+        throw err;
+      }
+
+      info('No existing live DDOC');
+    })
+    .then(liveDdoc => {
+      info('Preparing staged ddoc for deployment');
+      stagedDdoc._id = DDOC_ID;
+
+      if (liveDdoc) {
+        stagedDdoc._rev = liveDdoc._rev;
+        stagedDdoc.app_settings = liveDdoc.app_settings;
+
+        trace(`Copied id(${stagedDdoc._id}), rev(${stagedDdoc._rev}) and app_settings from current DDOC into staged`);
+      } else {
+        delete stagedDdoc._rev;
+      }
+
+      trace('Storing modified staged DDOC in production location');
+      return stagedDdoc;
+    })
+    .then(ddoc => db.put(ddoc))
+    .then(result => trace('Modified staged DDOC PUT result:', result))
+    .then(() => info('Modified staged DDOC deployed successfully'))
+    .then(() => info(`Deleting ${deletedStagedDdoc._id}`))
+    .then(() => db.remove(deletedStagedDdoc))
+    .then(result => trace('Original Staged DDOC DELETE result:', result))
+    .then(() => info('Original Staged DDOC deleted successfully'))
+    .then(() => info('Ddoc deployed'));
+};
+
 const deployPath = (app, identifier) => {
   identifier = identifier || app.digest.replace(/\//g, '');
   return Path.resolve(Path.join(mode.deployments, app.name, identifier));
@@ -185,7 +265,8 @@ const deployPath = (app, identifier) => {
 
 const unzipChangedApps = changedApps =>
   Promise.all(changedApps.map(app =>
-    db.getAttachment(DDOC, app.attachmentName)
+    db.getAttachment(STAGED_DDOC_ID, app.attachmentName)
+      .catch(fatality)
       .then(attachment =>
         decompress(attachment, deployPath(app), {
           map: file => {
