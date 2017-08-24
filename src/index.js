@@ -138,7 +138,7 @@ function processDdoc(ddoc, firstRun) {
       .then(() => unzipChangedApps(changedApps))
       .then(() => info('Changed apps unzipped.'))
 
-      .then(() => info('Stopping all apps…', apps.apps))
+      .then(() => info('Stopping all apps…', apps.APPS))
       .then(() => apps.stop())
       .then(() => info('All apps stopped.'))
 
@@ -199,7 +199,7 @@ function bootstrap() {
 
 
 function startApps() {
-  info('Starting all apps…', apps.apps);
+  info('Starting all apps…', apps.APPS);
   return apps.start()
     .then(() => info('All apps started.'));
 }
