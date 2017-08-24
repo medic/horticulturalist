@@ -1,16 +1,18 @@
 #!/usr/bin/env node
-const Apps = require('./apps');
-const chown = require('chown');
-const decompress = require('decompress');
-const fatality = require('./fatality');
-const fs = require('fs-extra');
-const info = require('./log').info;
-const lockfile = require('./lockfile');
-const os = require('os');
-const Path = require('path');
-const redact = require('redact-basic-auth');
-const trace = require('./log').trace;
-const parseArgs = require('minimist');
+const chown = require('chown'),
+      decompress = require('decompress'),
+      fs = require('fs-extra'),
+      os = require('os'),
+      parseArgs = require('minimist'),
+      path = require('path'),
+      redact = require('redact-basic-auth');
+
+const Apps = require('./apps'),
+      fatality = require('./fatality'),
+      help = require('./help'),
+      info = require('./log').info,
+      lockfile = require('./lockfile'),
+      trace = require('./log').trace;
 
 // Include pouch in modular form or npm isn't happy
 const PouchDB = require('pouchdb-core');
@@ -20,6 +22,7 @@ const STAGING_URL = 'https://staging.dev.medicmobile.org/_couch/builds';
 
 const MODES = {
   development: {
+    name: 'development',
     chown_apps: false,
     deployments: './temp/deployments',
     start: [ 'bin/svc-start', './temp/deployments', '{{app}}' ],
@@ -27,6 +30,7 @@ const MODES = {
     startAppsOnStartup: true,
   },
   local: {
+    name: 'local',
     chown_apps: false,
     deployments: `${os.homedir()}/.horticulturalist/deployments`,
     start: [ 'horti-svc-start', `${os.homedir()}/.horticulturalist/deployments`, '{{app}}' ],
@@ -34,6 +38,7 @@ const MODES = {
     startAppsOnStartup: true,
   },
   medic_os: {
+    name: 'Medic OS',
     chown_apps: true,
     deployments: '/srv/software',
     start: ['svc-start', '{{app}}' ],
@@ -44,14 +49,20 @@ const MODES = {
 
 const argv = parseArgs(process.argv);
 
-if(argv.version) {
-  const version = require('../package').version;
-  console.log(`horticulturalist-${version}`);
+const mode = argv.dev         ? MODES.development :
+             argv.local       ? MODES.local :
+             argv['medic-os'] ? MODES.medic_os :
+             undefined;
+
+if (argv.version || argv.v) {
+  help.outputVersion();
   return;
 }
 
-const mode = argv.dev   ? MODES.development :
-             argv.local ? MODES.local : MODES.medic_os;
+if (!mode || argv.help || argv.h) {
+  help.outputHelp();
+  return;
+}
 
 let bootstrapDdoc = argv.bootstrap;
 if (bootstrapDdoc === true) {
@@ -73,7 +84,7 @@ fs.mkdirs(mode.deployments);
 const db = new PouchDB(COUCH_URL);
 const apps = Apps(mode.start, mode.stop);
 
-info('Starting Horticulturalist');
+info(`Starting Horticulturalist in ${mode.name} mode`);
 Promise.resolve()
   // If we're bootstrapping pull down the DDOC, process and deploy it
   .then(() => bootstrapDdoc && bootstrap())
@@ -127,7 +138,7 @@ function processDdoc(ddoc, firstRun) {
       .then(() => unzipChangedApps(changedApps))
       .then(() => info('Changed apps unzipped.'))
 
-      .then(() => info('Stopping all apps…', apps.APPS))
+      .then(() => info('Stopping all apps…', apps.apps))
       .then(() => apps.stop())
       .then(() => info('All apps stopped.'))
 
@@ -188,7 +199,7 @@ function bootstrap() {
 
 
 function startApps() {
-  info('Starting all apps…', apps.APPS);
+  info('Starting all apps…', apps.apps);
   return apps.start()
     .then(() => info('All apps started.'));
 }
@@ -260,7 +271,7 @@ const deployDdoc = stagedDdoc => {
 
 const deployPath = (app, identifier) => {
   identifier = identifier || app.digest.replace(/\//g, '');
-  return Path.resolve(Path.join(mode.deployments, app.name, identifier));
+  return path.resolve(path.join(mode.deployments, app.name, identifier));
 };
 
 const unzipChangedApps = changedApps =>

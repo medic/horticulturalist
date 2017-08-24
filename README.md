@@ -16,5 +16,21 @@ Deploys and manages [Medic](github.com/medic/medic-webapp).
 
 # Options
 
-	--bootstrap[=buildname]
-		Download the latest master (or specified) build and deploy to the local db at startup.
+Pick one mode to run in:
+
+    --local
+        If you don't know which one you want, you want this one. For general
+        local use. Deploys applications to a hidden directory in your home
+        folder.
+    --dev
+        Runs horti in 'dev' mode, directly out of the given directory under a
+        'temp' directory. For developers and for use while developing horti.
+    --medic-os
+        Only of interest to those who deploy using MedicOS. Deploys apps using
+        the MedicOS' daemon.
+
+Additional options:
+
+    --bootstrap[=buildname]
+        Download the latest master (or specified) build and deploy to the
+        local db at startup.
