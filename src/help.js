@@ -7,7 +7,7 @@ const pluckOptionsFromReadme = () => {
 
   // Everything before options
   readmeString = readmeString.replace(/[\s\S]*# Options/, '# Options');
-  // And everything from the next section onwards
+  // And everything from the next major section onwards
   readmeString = readmeString.replace(/\n# [\s\S]*/, '');
 
   return readmeString;
