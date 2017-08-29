@@ -1,7 +1,7 @@
 {
   "name": "horticulturalist",
   "version": "0.5.0",
-  "description": "",
+  "description": "A fancy gardener",
   "main": "src/index.js",
   "bin": {
     "horti": "src/index.js",
