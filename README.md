@@ -27,7 +27,7 @@ Pick one mode to run in:
         'temp' directory. For developers and for use while developing horti.
     --medic-os
         Only of interest to those who deploy using MedicOS. Deploys apps using
-        the MedicOS' daemon.
+        the MedicOS daemon.
 
 Additional options:
 
