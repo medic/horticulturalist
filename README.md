@@ -3,6 +3,8 @@ Horticulturalist
 
 Deploys and manages [Medic](github.com/medic/medic-webapp).
 
+For more detailed documentation on how to start Medic using Horticulturalist, [see this guide](https://github.com/medic/medic-webapp#deploy-locally-using-horticulturalist-beta).
+
 # Usage
 
 ## From `npm`
