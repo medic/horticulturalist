@@ -19,6 +19,7 @@ const error = require('./log').error,
 // Include pouch in modular form or npm isn't happy
 const PouchDB = require('pouchdb-core');
 PouchDB.plugin(require('pouchdb-adapter-http'));
+PouchDB.plugin(require('pouchdb-mapreduce'));
 
 const STAGING_URL = 'https://staging.dev.medicmobile.org/_couch/builds';
 
@@ -53,7 +54,7 @@ const argv = parseArgs(process.argv);
 
 if ([argv.dev, argv.local, argv['medic-os']].filter(x => !!x).length !== 1) {
   help.outputHelp();
-  error('Error: You must pick one mode to run in.');
+  error('You must pick one mode to run in.');
   return;
 }
 
@@ -72,9 +73,13 @@ if (!mode || argv.help || argv.h) {
   return;
 }
 
-let bootstrapDdoc = argv.bootstrap || argv['only-bootstrap'];
-if (bootstrapDdoc === true) {
-  bootstrapDdoc = 'master';
+let bootstrapVersion = argv.bootstrap || argv['only-bootstrap'];
+if (bootstrapVersion === true) {
+  bootstrapVersion = 'master';
+}
+const latestBuild = bootstrapVersion && bootstrapVersion.startsWith('@');
+if (latestBuild) {
+  bootstrapVersion = bootstrapVersion.substring(1);
 }
 
 const daemonMode = !argv['only-bootstrap'];
@@ -96,7 +101,7 @@ const apps = Apps(mode.start, mode.stop);
 
 info(`Starting Horticulturalist ${daemonMode ? 'daemon ' : ''}in ${mode.name} mode`);
 Promise.resolve()
-  .then(() => bootstrapDdoc && bootstrap())
+  .then(() => bootstrapVersion && bootstrap())
   .then(() => {
     if (daemonMode) {
       info('Initiating horticulturalist daemon');
@@ -110,7 +115,7 @@ Promise.resolve()
 
           info('No deployments to make upon boot');
         })
-        .then(ddoc => ddoc && processDdoc(ddoc))
+        .then(ddoc => ddoc && processDdoc(ddoc, true))
         // If we didn't just process (and start) the new ddoc, maybe start it here
         .then(processed => !processed && mode.startAppsOnStartup && startApps())
         // Listen for new staged deployments and process them
@@ -143,7 +148,7 @@ Promise.resolve()
 // Deploy the passed ddoc, and deploy node modules if required
 // For safety we always deploy the staged ddoc if one exists
 // In the future we could look somewhere in metadata to determin if it's different
-function processDdoc(ddoc) {
+function processDdoc(ddoc, firstRun) {
   info(`Processing ddoc ${ddoc._id}`);
 
   const changedApps = getChangedApps(ddoc);
@@ -170,12 +175,11 @@ function processDdoc(ddoc) {
         return Promise.resolve()
           .then(() => info('Updating symlinks for changed apps…', changedApps))
           .then(() => updateSymlinkAndRemoveOldVersion(changedApps))
-          .then(() => info('Symlinks updated.'))
-
-          .then(startApps);
+          .then(() => info('Symlinks updated.'));
       }
     })
 
+    .then(() => (appsToDeploy || firstRun) && startApps())
     .then(() => lockfile.release())
     .then(() => true);
 }
@@ -183,17 +187,39 @@ function processDdoc(ddoc) {
 
 // Load and stage a ddoc for deployment
 function bootstrap() {
-  info(`Bootstrap requested. Bootstrapping to ${bootstrapDdoc}`);
-  trace(`Fetching new ddoc from ${STAGING_URL}…`);
-  return new PouchDB(STAGING_URL)
-    .get(`medic:medic:${bootstrapDdoc}`, { attachments:true })
+  info(`Bootstrap requested. Bootstrapping to ${latestBuild ? 'the latest ' : ''}${bootstrapVersion}`);
+  trace(`Fetching new ddoc from ${STAGING_URL}...`);
+  const staging = new PouchDB(STAGING_URL);
+  return Promise.resolve()
+    .then(() => {
+      if (latestBuild) {
+        return staging.query('builds/releases', {
+          startkey: [bootstrapVersion, 'medic', 'medic', {}],
+          endkey: [bootstrapVersion, 'medic', 'medic'],
+          descending: true,
+          include_docs: true,
+          attachments: true,
+          limit: 1
+        }).then(results => {
+          if (results.rows.length === 0) {
+            throw new Error(`There are currently no builds for '${bootstrapVersion}' available`);
+          } else {
+            const row = results.rows[0];
+            info(`Got ${row.id}`);
+            return row.doc;
+          }
+        });
+      } else {
+        return staging.get(`medic:medic:${bootstrapVersion}`, { attachments:true });
+      }
+    })
     .then(newDdoc => {
       trace('New ddoc fetched.');
       newDdoc._id = STAGED_DDOC_ID;
       newDdoc.deploy_info = {
         timestamp: new Date().toString(),
         user: 'horticulturalist (bootstrap)',
-        version: bootstrapDdoc,
+        version: bootstrapVersion,
       };
       delete newDdoc._rev;
       trace('Fetching old staged ddoc from local db…');

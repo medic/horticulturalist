@@ -33,8 +33,10 @@ Pick one mode to run in:
 
 Additional options:
 
-    --bootstrap[=buildname]
+    --bootstrap[=buildname|@type]
         Download the latest master (or specified) build and deploy to the
-        local db at startup.
-    --only-bootstrap[=buildname]
-        Like bootstap, but quits directly after
+        local db at startup. Buildname can either be an exact build name (eg
+        'master'), or @type for the latest of that type (eg @release or @beta).
+    --only-bootstrap[=buildname|@type]
+        Like above this bootstraps to the given build, but doesn't start the 
+        daemon or deploy any applications

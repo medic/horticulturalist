@@ -1,7 +1,8 @@
 {
   "name": "horticulturalist",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "A fancy gardener",
+  "repository": "https://github.com/medic/horticulturalist",
   "main": "src/index.js",
   "bin": {
     "horti": "src/index.js",
@@ -23,6 +24,7 @@
     "minimist": "^1.2.0",
     "pouchdb-adapter-http": "^6.2.0",
     "pouchdb-core": "^6.2.0",
+    "pouchdb-mapreduce": "^6.2.0",
     "redact-basic-auth": "^0.1.0"
   }
 }
