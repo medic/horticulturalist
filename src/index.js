@@ -10,8 +10,10 @@ const chown = require('chown'),
 const Apps = require('./apps'),
       fatality = require('./fatality'),
       help = require('./help'),
+      lockfile = require('./lockfile');
+
+const error = require('./log').error,
       info = require('./log').info,
-      lockfile = require('./lockfile'),
       trace = require('./log').trace;
 
 // Include pouch in modular form or npm isn't happy
@@ -49,6 +51,12 @@ const MODES = {
 
 const argv = parseArgs(process.argv);
 
+if ([argv.dev, argv.local, argv['medic-os']].filter(x => !!x).length !== 1) {
+  help.outputHelp();
+  error('Error: You must pick one mode to run in.');
+  return;
+}
+
 const mode = argv.dev         ? MODES.development :
              argv.local       ? MODES.local :
              argv['medic-os'] ? MODES.medic_os :
@@ -64,10 +72,12 @@ if (!mode || argv.help || argv.h) {
   return;
 }
 
-let bootstrapDdoc = argv.bootstrap;
+let bootstrapDdoc = argv.bootstrap || argv['only-bootstrap'];
 if (bootstrapDdoc === true) {
   bootstrapDdoc = 'master';
 }
+
+const daemonMode = !argv['only-bootstrap'];
 
 const COUCH_URL = process.env.COUCH_URL;
 if(!COUCH_URL) throw new Error('COUCH_URL env var not set.');
@@ -84,85 +94,94 @@ fs.mkdirs(mode.deployments);
 const db = new PouchDB(COUCH_URL);
 const apps = Apps(mode.start, mode.stop);
 
-info(`Starting Horticulturalist in ${mode.name} mode`);
+info(`Starting Horticulturalist ${daemonMode ? 'daemon ' : ''}in ${mode.name} mode`);
 Promise.resolve()
-  // If we're bootstrapping pull down the DDOC, process and deploy it
   .then(() => bootstrapDdoc && bootstrap())
-  .catch(fatality)
-  // If we're not boostrapping but we want to start apps do that
-  .then(() => !bootstrapDdoc && mode.startAppsOnStartup && startApps())
-  // In case there is an existing staged ddoc to be deployed deal with it
-  .then(() => db.get(STAGED_DDOC_ID))
-  .catch(err => {
-    if (err.status !== 404) {
-      throw err;
-    }
-
-    info('No deployments to make upon boot');
-  })
-  .then(ddoc => ddoc && processDdoc(ddoc))
-  // Listen for new staged deployments and process them
   .then(() => {
-    info(`Starting change feed listener at ${redact(COUCH_URL)}…`);
-    db
-      .changes({
-        live: true,
-        since: 'now',
-        doc_ids: [ STAGED_DDOC_ID ],
-        include_docs: true,
-        attachments: true,
-        timeout: false,
-      })
-      .on('change', change => {
-        trace(`Change in ${STAGED_DDOC_ID} detected`);
-        if (!change.deleted) {
-            processDdoc(change.doc).catch(fatality);
-        } else {
-          trace('Ignoring our own delete');
-        }
-      })
-      .on('error', fatality);
+    if (daemonMode) {
+      info('Initiating horticulturalist daemon');
+      return Promise.resolve()
+        // Check for and process staged ddoc
+        .then(() => db.get(STAGED_DDOC_ID, {attachments: true}))
+        .catch(err => {
+          if (err.status !== 404) {
+            throw err;
+          }
+
+          info('No deployments to make upon boot');
+        })
+        .then(ddoc => ddoc && processDdoc(ddoc))
+        // If we didn't just process (and start) the new ddoc, maybe start it here
+        .then(processed => !processed && mode.startAppsOnStartup && startApps())
+        // Listen for new staged deployments and process them
+        .then(() => {
+          info(`Starting change feed listener at ${redact(COUCH_URL)}…`);
+          db
+            .changes({
+              live: true,
+              since: 'now',
+              doc_ids: [ STAGED_DDOC_ID ],
+              include_docs: true,
+              attachments: true,
+              timeout: false,
+            })
+            .on('change', change => {
+              trace(`Change in ${STAGED_DDOC_ID} detected`);
+              if (!change.deleted) {
+                  processDdoc(change.doc).catch(fatality);
+              } else {
+                trace('Ignoring our own delete');
+              }
+            })
+            .on('error', fatality);
+        });
+    }
   })
   .catch(fatality);
 
 
-function processDdoc(ddoc, firstRun) {
+// Deploy the passed ddoc, and deploy node modules if required
+// For safety we always deploy the staged ddoc if one exists
+// In the future we could look somewhere in metadata to determin if it's different
+function processDdoc(ddoc) {
   info(`Processing ddoc ${ddoc._id}`);
 
   const changedApps = getChangedApps(ddoc);
+  const appsToDeploy = changedApps.length;
 
-  if(changedApps.length) {
-    return lockfile.wait()
+  return lockfile.wait()
+    .then(() => {
+      if (appsToDeploy) {
+        return Promise.resolve()
+          .then(() => info(`Unzipping changed apps to ${mode.deployments}…`, changedApps))
+          .then(() => unzipChangedApps(changedApps))
+          .then(() => info('Changed apps unzipped.'))
 
-      .then(() => info(`Unzipping changed apps to ${mode.deployments}…`, changedApps))
-      .then(() => unzipChangedApps(changedApps))
-      .then(() => info('Changed apps unzipped.'))
+          .then(() => info('Stopping all apps…', apps.APPS))
+          .then(() => apps.stop())
+          .then(() => info('All apps stopped.'));
+      }
+    })
 
-      .then(() => info('Stopping all apps…', apps.APPS))
-      .then(() => apps.stop())
-      .then(() => info('All apps stopped.'))
+    .then(() => deployDdoc(ddoc))
 
-      .then(() => deployDdoc(ddoc))
+    .then(() => {
+      if (appsToDeploy) {
+        return Promise.resolve()
+          .then(() => info('Updating symlinks for changed apps…', changedApps))
+          .then(() => updateSymlinkAndRemoveOldVersion(changedApps))
+          .then(() => info('Symlinks updated.'))
 
-      .then(() => info('Updating symlinks for changed apps…', changedApps))
-      .then(() => updateSymlinkAndRemoveOldVersion(changedApps))
-      .then(() => info('Symlinks updated.'))
+          .then(startApps);
+      }
+    })
 
-      .then(startApps)
-
-      .then(() => lockfile.release());
-  } else {
-    info('No apps have changed.');
-
-    if (firstRun) {
-      return startApps();
-    } else {
-      return Promise.resolve();
-    }
-  }
+    .then(() => lockfile.release())
+    .then(() => true);
 }
 
 
+// Load and stage a ddoc for deployment
 function bootstrap() {
   info(`Bootstrap requested. Bootstrapping to ${bootstrapDdoc}`);
   trace(`Fetching new ddoc from ${STAGING_URL}…`);
@@ -187,13 +206,7 @@ function bootstrap() {
         })
         .then(() => trace('Uploading new ddoc to local db…'))
         .then(() => db.put(newDdoc))
-        // TODO: Getting this again can solve some edge cases based on the state
-        //       of the DB. More testing is required to refactor this code and
-        //       improve its robustness.
-        //       See https://github.com/medic/medic-webapp/issues/3805
-        .then(() => db.get(STAGED_DDOC_ID, {attachments: true}))
-        .then(ddoc => processDdoc(ddoc, true))
-        .then(() => trace('Bootstrap complete.'));
+        .then(() => info('Bootstrap complete.'));
     });
 }
 
@@ -225,6 +238,7 @@ const moduleToApp = (ddoc, module) =>
     digest: ddoc._attachments[module].digest,
   });
 
+// Takes a staged DDOC and correctly moves it into its production location
 const deployDdoc = stagedDdoc => {
   info(`Deploy staged ddoc ${STAGED_DDOC_ID} to ${DDOC_ID}`);
 

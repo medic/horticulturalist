@@ -36,3 +36,5 @@ Additional options:
     --bootstrap[=buildname]
         Download the latest master (or specified) build and deploy to the
         local db at startup.
+    --only-bootstrap[=buildname]
+        Like bootstap, but quits directly after
