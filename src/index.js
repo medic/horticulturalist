@@ -206,6 +206,7 @@ function bootstrap() {
           } else {
             const row = results.rows[0];
             info(`Got ${row.id}`);
+            bootstrapVersion = results.id.replace('medic:medic', '');
             return row.doc;
           }
         });
