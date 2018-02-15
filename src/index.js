@@ -41,8 +41,8 @@ const MODES = {
   medic_os: {
     name: 'Medic OS',
     deployments: '/srv/software',
-    start: ['sudo', '/boot/svc-start', '{{app}}' ],
-    stop: ['sudo', '/boot/svc-stop', '{{app}}' ],
+    start: ['sudo', '-n', '/boot/svc-start', '{{app}}' ],
+    stop: ['sudo', '-n', '/boot/svc-stop', '{{app}}' ],
     startAppsOnStartup: false,
   },
 };
