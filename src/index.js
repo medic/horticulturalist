@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-const chown = require('chown'),
-      decompress = require('decompress'),
+const decompress = require('decompress'),
       fs = require('fs-extra'),
       os = require('os'),
       parseArgs = require('minimist'),
