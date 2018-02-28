@@ -26,7 +26,6 @@ const STAGING_URL = 'https://staging.dev.medicmobile.org/_couch/builds';
 const MODES = {
   development: {
     name: 'development',
-    chown_apps: false,
     deployments: './temp/deployments',
     start: [ 'bin/svc-start', './temp/deployments', '{{app}}' ],
     stop: [ 'bin/svc-stop', '{{app}}' ],
@@ -34,7 +33,6 @@ const MODES = {
   },
   local: {
     name: 'local',
-    chown_apps: false,
     deployments: `${os.homedir()}/.horticulturalist/deployments`,
     start: [ 'horti-svc-start', `${os.homedir()}/.horticulturalist/deployments`, '{{app}}' ],
     stop: [ 'horti-svc-stop', '{{app}}' ],
@@ -42,10 +40,9 @@ const MODES = {
   },
   medic_os: {
     name: 'Medic OS',
-    chown_apps: true,
     deployments: '/srv/software',
-    start: ['svc-start', '{{app}}' ],
-    stop: ['svc-stop', '{{app}}' ],
+    start: ['sudo', '-n', '/boot/svc-start', '{{app}}' ],
+    stop: ['sudo', '-n', '/boot/svc-stop', '{{app}}' ],
     startAppsOnStartup: false,
   },
 };
@@ -327,7 +324,7 @@ const unzipChangedApps = changedApps =>
           },
         })
       )
-      .then(() => mode.chown_apps && chown(deployPath(app), app.name))));
+  ));
 
 const updateSymlinkAndRemoveOldVersion = changedApps =>
   Promise.all(changedApps.map(app => {
