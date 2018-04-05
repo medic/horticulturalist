@@ -7,6 +7,7 @@ const decompress = require('decompress'),
       redact = require('redact-basic-auth');
 
 const Apps = require('./apps'),
+      bootstrap = require('./bootstrap'),
       fatality = require('./fatality'),
       help = require('./help'),
       lockfile = require('./lockfile');
@@ -14,13 +15,6 @@ const Apps = require('./apps'),
 const error = require('./log').error,
       info = require('./log').info,
       trace = require('./log').trace;
-
-// Include pouch in modular form or npm isn't happy
-const PouchDB = require('pouchdb-core');
-PouchDB.plugin(require('pouchdb-adapter-http'));
-PouchDB.plugin(require('pouchdb-mapreduce'));
-
-const STAGING_URL = 'https://staging.dev.medicmobile.org/_couch/builds';
 
 const MODES = {
   development: {
@@ -97,7 +91,12 @@ const apps = Apps(mode.start, mode.stop);
 
 info(`Starting Horticulturalist ${daemonMode ? 'daemon ' : ''}in ${mode.name} mode`);
 Promise.resolve()
-  .then(() => bootstrapVersion && bootstrap())
+  .then(() => {
+    if (bootstrapVersion) {
+      info(`Bootstrapping ${bootstrapVersion}`)
+      bootstrap.bootstrap();
+    }
+  })
   .then(() => {
     if (daemonMode) {
       info('Initiating horticulturalist daemon');
