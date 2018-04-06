@@ -1,6 +1,6 @@
 {
   "name": "horticulturalist",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "A fancy gardener",
   "repository": "https://github.com/medic/horticulturalist",
   "license": "Apache-2.0",
@@ -12,7 +12,7 @@
   },
   "scripts": {
     "start": "node src/index.js --dev",
-    "test": "jshint src/ tests/ && TESTING=1 mocha ./tests/**.js",
+    "test": "jshint src/ tests/ && TESTING=1 mocha ./tests/**.js"
   },
   "dependencies": {
     "decompress": "^4.2.0",

@@ -1,9 +1,11 @@
 const DB = require('./dbs');
+const { info, debug } = require('./log');
 
 const HORTI_UPGRADE_DOC = 'horti-upgrade';
 
 const buildInfo = (version) => {
   if (version.startsWith('@')) {
+    debug('Version is a channel, finding out the latest version');
     version = version.substring(1);
     return DB.builds.query('builds/releases', {
       startkey: [version, 'medic', 'medic', {}],
@@ -14,6 +16,7 @@ const buildInfo = (version) => {
       if (results.rows.length === 0) {
         throw new Error(`There are currently no builds for the '${version}' channel`);
       } else {
+        debug(`Found ${results.rows[0].id}`);
         const [namespace, application, version] = results.rows[0].id.split(':');
         return {
           namespace: namespace,
@@ -32,13 +35,34 @@ const buildInfo = (version) => {
 };
 
 module.exports.bootstrap = (version) => {
-  return buildInfo(version)
-    .then(buildInfo => {
-      return DB.app.put({
-          _id: HORTI_UPGRADE_DOC,
-          initiator: 'horticulturalist',
-          created: new Date().getTime(),
-          build_info: buildInfo
-      });
+  info(`Bootstrapping to ${version}`);
+  return DB.app.get(HORTI_UPGRADE_DOC)
+    .catch(err => {
+      if (err.status !== 404) {
+        throw err;
+      }
+    })
+    .then(existingDeployDoc => {
+      return buildInfo(version)
+        .then(buildInfo => {
+          debug('Bootstrapping upgrade doc');
+
+          const upgradeDoc = {
+              _id: HORTI_UPGRADE_DOC,
+              user: 'horticulturalist bootstrap',
+              created: new Date().getTime(),
+              build_info: buildInfo
+          };
+
+          if (existingDeployDoc) {
+            upgradeDoc._rev = existingDeployDoc._rev;
+          }
+
+          return DB.app.put(upgradeDoc)
+            .then(result => {
+              upgradeDoc._rev = result.rev;
+              return upgradeDoc;
+            });
+        });
     });
 };

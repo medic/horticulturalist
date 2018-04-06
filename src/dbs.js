@@ -7,7 +7,18 @@ const COUCH_URL = process.env.COUCH_URL;
 if(!COUCH_URL) throw new Error('COUCH_URL env var not set.');
 
 if (process.env.TESTING) {
-  module.exports = {};
+  module.exports = {
+    app: {
+      get: () => undefined,
+      put: () => undefined,
+      remove: () => undefined
+    },
+    builds: {
+      get: () => undefined,
+      put: () => undefined,
+      query: () => undefined
+    }
+  };
 } else {
   module.exports = {
     app: new PouchDB(COUCH_URL),
