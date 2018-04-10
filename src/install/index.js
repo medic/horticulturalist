@@ -1,13 +1,36 @@
 const { info, debug } = require('../log'),
       DB = require('../dbs');
 
-const STAGED_DDOC_ID = '_design/medic:staging';
+// TODO: move to this so that multiple ddocs make sense and are clear
+// deployable._id = `_design/:staged:${deployDoc.build_info.version}:${deployDoc.build_info.application}`;
+const stageDdoc = doc => {
+  doc._id = doc._id.replace('_design/', '_design/:staged:');
+  delete doc._rev;
+
+  return doc;
+};
 
 const keyFromDeployDoc = deployDoc => [
   deployDoc.build_info.namespace,
   deployDoc.build_info.application,
   deployDoc.build_info.version
 ].join(':');
+
+const stagedDdocs = includeDocs =>
+  DB.app.allDocs({
+    startkey: '_design/:staged:',
+    endkey: '_design/:staged:\ufff0',
+    include_docs: includeDocs
+  }).then(({rows}) => {
+    if (includeDocs) {
+      return rows.map(r => r.doc);
+    } else {
+      return rows.map(r => ({
+        _id: r.id,
+        _rev: r.value.rev
+      }));
+    }
+  });
 
 // TODO: const stage = (num, message) => Promise.resolve();
 // or (num, message, fn, ...args) => Promise.resolve();
@@ -20,9 +43,8 @@ const downloadBuild = deployDoc => {
     .then(deployable => {
       debug(`Got ${deployable._id}, staging`);
 
-      // TODO: move to this so that multiple ddocs make sense and are clear
-      // deployable._id = `_design/${deployDoc.build_info.version}:${deployDoc.build_info.application}:staging`;
-      deployable._id = STAGED_DDOC_ID;
+      deployable._id = `_design/${deployDoc.build_info.application}`;
+      stageDdoc(deployable);
       deployable.deploy_info = {
         timestamp: new Date(),
         user: deployDoc.user,
@@ -40,32 +62,52 @@ const downloadBuild = deployDoc => {
     });
 };
 
-const legacySteps = (apps, mode, ddoc, firstRun) => {
-  const legacy = require('./legacy')(DB.app, apps, mode);
-  return legacy(ddoc, firstRun);
+const extractDdocs = ddoc => {
+  info('Stage: Extracting ddocs');
+  const compiledDocs =
+    JSON.parse(
+      Buffer.from(ddoc._attachments['ddocs/compiled.json'].data, 'base64')
+    ).docs;
+
+  compiledDocs.forEach(stageDdoc);
+  debug(`Storing staged: ${JSON.stringify(compiledDocs.map(d => d._id))}`);
+
+  return DB.app.bulkDocs(compiledDocs);
+};
+
+const clearStagedDdocs = () => {
+  debug('Clear existing staged DBs');
+  return stagedDdocs().then(docs => {
+    if (docs.length) {
+      docs.forEach(d => d._deleted = true);
+
+      debug(`Deleting staged ddocs: ${JSON.stringify(docs.map(d => d._id))}`);
+      return DB.app.bulkDocs(docs);
+    }
+  });
 };
 
 const preCleanup = () => {
   info('Stage: pre-deploy cleanup');
-  return DB.app.get(STAGED_DDOC_ID)
-    .then(existingStagedDdoc => {
-      debug('Deleting existing staged ddoc');
-      return DB.app.remove(existingStagedDdoc);
-    })
-    .catch(err => {
-      if (err.status !== 404) {
-        throw err;
-      }
-      debug('No existing staged ddoc');
-    });
+  return clearStagedDdocs();
 };
-
 
 const postCleanup = (deployDoc) => {
   info('Stage: post-deploy cleanup');
-  deployDoc._deleted = true;
 
-  return DB.app.put(deployDoc);
+  return clearStagedDdocs()
+    .then(() => {
+      deployDoc._deleted = true;
+      return DB.app.put(deployDoc);
+    });
+};
+
+// The existing deploy code not yet broken up into stages / unit tested
+const legacySteps = (apps, mode, ddoc, firstRun) => {
+  info('Stage: EVERYTHING ELSE');
+
+  const legacy = require('./legacy')(DB.app, apps, mode);
+  return legacy(ddoc, firstRun);
 };
 
 module.exports = {
@@ -77,11 +119,16 @@ module.exports = {
     const m = module.exports;
     return m._preCleanup()
       .then(() => m._downloadBuild(deployDoc))
-      .then((ddoc) => m._legacySteps(apps, mode, ddoc, firstRun))
+      .then(ddoc => {
+        return m._extractDdocs(ddoc)
+        //.then(changedDddocs => m._warmViews())
+          .then(() => m._legacySteps(apps, mode, ddoc, firstRun));
+      })
       .then(() => m._postCleanup(deployDoc));
   },
   _preCleanup: preCleanup,
   _downloadBuild: downloadBuild,
+  _extractDdocs: extractDdocs,
   _legacySteps: legacySteps,
   _postCleanup: postCleanup
 };

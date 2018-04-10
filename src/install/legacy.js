@@ -8,7 +8,7 @@ const { info, debug } = require('../log'),
       lockfile = require('../lockfile');
 
 const DDOC_ID = '_design/medic';
-const STAGED_DDOC_ID = '_design/medic:staging';
+const STAGED_DDOC_ID = '_design/:staged:medic';
 
 module.exports = (db, apps, mode) => {
   const appNameFromModule = module =>
@@ -42,9 +42,9 @@ module.exports = (db, apps, mode) => {
               .map(module => moduleToApp(ddoc, module));
     }
 
-    debug(`Found ${apps}`);
+    debug(`Found ${JSON.stringify(apps)}`);
     apps = apps.filter(appNotAlreadyUnzipped);
-    debug(`Apps that aren't unzipped: ${apps}`);
+    debug(`Apps that aren't unzipped: ${JSON.stringify(apps)}`);
 
     return apps;
   };

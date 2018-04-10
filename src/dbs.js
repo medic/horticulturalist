@@ -5,16 +5,20 @@ PouchDB.plugin(require('pouchdb-mapreduce'));
 const STAGING_URL = 'https://staging.dev.medicmobile.org/_couch/builds';
 
 if (process.env.TESTING) {
+  const unmocked = () => Promise.reject('this needs to be mocked');
+
   module.exports = {
     app: {
-      get: () => undefined,
-      put: () => undefined,
-      remove: () => undefined
+      allDocs: unmocked,
+      bulkDocs: unmocked,
+      get: unmocked,
+      put: unmocked,
+      remove: unmocked
     },
     builds: {
-      get: () => undefined,
-      put: () => undefined,
-      query: () => undefined
+      get: unmocked,
+      put: unmocked,
+      query: unmocked
     }
   };
 } else {
