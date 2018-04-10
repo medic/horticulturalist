@@ -24,8 +24,8 @@ const downloadBuild = deployDoc => {
       // deployable._id = `_design/${deployDoc.build_info.version}:${deployDoc.build_info.application}:staging`;
       deployable._id = STAGED_DDOC_ID;
       deployable.deploy_info = {
-        timestamp: new Date().toString(),
-        user: deployDoc.creator,
+        timestamp: new Date(),
+        user: deployDoc.user,
         version: deployDoc.build_info.version,
       };
       delete deployable._rev;

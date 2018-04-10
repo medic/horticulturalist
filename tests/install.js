@@ -7,7 +7,7 @@ const install = require('../src/install');
 describe('Installation flow', () => {
   const deployDoc = {
     _id: 'horti-upgrade',
-    creator: 'admin',
+    user: 'admin',
     build_info: {
       namespace: 'medic',
       application: 'medic',

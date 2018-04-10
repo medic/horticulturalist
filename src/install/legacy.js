@@ -32,8 +32,13 @@ module.exports = (db, apps, mode) => {
   const getChangedApps = ddoc => {
     let apps = [];
     if (ddoc.node_modules) {
+      // Legacy Kanso data location
       apps = ddoc.node_modules
               .split(',')
+              .map(module => moduleToApp(ddoc, module));
+    } else if (ddoc.build_info) {
+      // New horticulturalist layout
+      apps = ddoc.build_info.node_modules
               .map(module => moduleToApp(ddoc, module));
     }
 
