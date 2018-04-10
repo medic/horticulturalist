@@ -21,6 +21,7 @@ describe('Installation flow', () => {
     sinon.stub(DB.app, 'bulkDocs');
     sinon.stub(DB.app, 'get');
     sinon.stub(DB.app, 'put');
+    sinon.stub(DB.app, 'query');
     sinon.stub(DB.app, 'remove');
     sinon.stub(DB.builds, 'get');
   });
@@ -79,6 +80,43 @@ describe('Installation flow', () => {
         DB.app.bulkDocs.args[0][0].should.deep.equal([{
           _id: '_design/:staged:medic-test'
         }]);
+      });
+    });
+  });
+
+  describe('Warming views', () => {
+    it('Finds all staged ddocs and queries a view from each', () => {
+      DB.app.allDocs.resolves({ rows: [
+        { doc: {
+          _id: '_design/:staged:no-views'
+        }},
+        { doc: {
+          _id: '_design/:staged:also-no-views',
+          views: {}
+        }},
+        { doc: {
+          _id: '_design/:staged:some-views',
+          views: {
+            a_view: 'the map etc'
+          }
+        }},
+        { doc: {
+          _id: '_design/:staged:some-more-views',
+          views: {
+            another_view: 'the map etc',
+            yet_another_view: 'the map etc'
+          }
+        }}
+      ]});
+      DB.app.query.resolves();
+
+      return install._warmViews()
+        .then(() => {
+        console.log('13243214324312');
+        DB.app.query.callCount.should.equal(2);
+        DB.app.query.args[0][0].should.equal(':staged:some-views/a_view');
+        DB.app.query.args[0][1].should.deep.equal({limit: 1});
+        DB.app.query.args[1][0].should.equal(':staged:some-more-views/another_view');
       });
     });
   });

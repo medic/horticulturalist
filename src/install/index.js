@@ -38,7 +38,7 @@ const stagedDdocs = includeDocs =>
 
 const downloadBuild = deployDoc => {
   info('Stage: downloading and staging install');
-  debug(`Downloading stage, getting ${keyFromDeployDoc(deployDoc)}`);
+  debug(`Downloading ${keyFromDeployDoc(deployDoc)}, this may take some time...`);
   return DB.builds.get(keyFromDeployDoc(deployDoc), { attachments: true })
     .then(deployable => {
       debug(`Got ${deployable._id}, staging`);
@@ -73,6 +73,36 @@ const extractDdocs = ddoc => {
   debug(`Storing staged: ${JSON.stringify(compiledDocs.map(d => d._id))}`);
 
   return DB.app.bulkDocs(compiledDocs);
+};
+
+const warmViews = () => {
+  info('Stage: Warming views');
+
+  const probeViews = viewlist => {
+    debug(`Querying the following views ${JSON.stringify(viewlist)}`);
+
+    return Promise.all(viewlist.map(view => DB.app.query(view, {limit: 1})))
+      .then(() => {
+        info('Warming views complete');
+      })
+      .catch(err => {
+        debug(`Warming views failed, (${err.message}), trying again...`);
+        return probeViews(viewlist);
+      });
+  };
+
+  const firstView = ddoc =>
+    `${ddoc._id.replace('_design/', '')}/${Object.keys(ddoc.views)[0]}`;
+
+  return stagedDdocs(true)
+    .then(ddocs => {
+      debug(`Got ${ddocs.length} staged ddocs`);
+      const queries = ddocs
+        .filter(ddoc => ddoc.views && Object.keys(ddoc.views).length)
+        .map(firstView);
+
+      return probeViews(queries);
+    });
 };
 
 const clearStagedDdocs = () => {
@@ -121,7 +151,7 @@ module.exports = {
       .then(() => m._downloadBuild(deployDoc))
       .then(ddoc => {
         return m._extractDdocs(ddoc)
-        //.then(changedDddocs => m._warmViews())
+          .then(() => m._warmViews())
           .then(() => m._legacySteps(apps, mode, ddoc, firstRun));
       })
       .then(() => m._postCleanup(deployDoc));
@@ -129,6 +159,7 @@ module.exports = {
   _preCleanup: preCleanup,
   _downloadBuild: downloadBuild,
   _extractDdocs: extractDdocs,
+  _warmViews: warmViews,
   _legacySteps: legacySteps,
   _postCleanup: postCleanup
 };

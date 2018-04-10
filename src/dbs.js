@@ -13,6 +13,7 @@ if (process.env.TESTING) {
       bulkDocs: unmocked,
       get: unmocked,
       put: unmocked,
+      query: unmocked,
       remove: unmocked
     },
     builds: {
