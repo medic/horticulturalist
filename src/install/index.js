@@ -1,4 +1,4 @@
-const { info, debug } = require('../log'),
+const { info, debug, stage } = require('../log'),
       DB = require('../dbs');
 
 // TODO: move to this so that multiple ddocs make sense and are clear
@@ -37,7 +37,7 @@ const stagedDdocs = includeDocs =>
 // or (message, fn, ...args) => Promise.resolve(); (auto-num)
 
 const downloadBuild = deployDoc => {
-  info('Stage: downloading and staging install');
+  stage('Downloading and staging install');
   debug(`Downloading ${keyFromDeployDoc(deployDoc)}, this may take some time...`);
   return DB.builds.get(keyFromDeployDoc(deployDoc), { attachments: true })
     .then(deployable => {
@@ -63,7 +63,7 @@ const downloadBuild = deployDoc => {
 };
 
 const extractDdocs = ddoc => {
-  info('Stage: Extracting ddocs');
+  stage('Extracting ddocs');
   const compiledDocs =
     JSON.parse(
       Buffer.from(ddoc._attachments['ddocs/compiled.json'].data, 'base64')
@@ -76,7 +76,7 @@ const extractDdocs = ddoc => {
 };
 
 const warmViews = () => {
-  info('Stage: Warming views');
+  stage('Warming views');
 
   const probeViews = viewlist => {
     debug(`Querying the following views ${JSON.stringify(viewlist)}`);
@@ -118,12 +118,12 @@ const clearStagedDdocs = () => {
 };
 
 const preCleanup = () => {
-  info('Stage: pre-deploy cleanup');
+  stage('Pre-deploy cleanup');
   return clearStagedDdocs();
 };
 
 const postCleanup = (deployDoc) => {
-  info('Stage: post-deploy cleanup');
+  stage('Post-deploy cleanup');
 
   return clearStagedDdocs()
     .then(() => {
@@ -134,7 +134,7 @@ const postCleanup = (deployDoc) => {
 
 // The existing deploy code not yet broken up into stages / unit tested
 const legacySteps = (apps, mode, ddoc, firstRun) => {
-  info('Stage: EVERYTHING ELSE');
+  stage('EVERYTHING ELSE');
 
   const legacy = require('./legacy')(DB.app, apps, mode);
   return legacy(ddoc, firstRun);
