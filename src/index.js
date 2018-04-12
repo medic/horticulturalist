@@ -11,6 +11,7 @@ const Apps = require('./apps'),
       help = require('./help'),
       lockfile = require('./lockfile');
 
+const LEGACY_0_8_UPGRADE_DOC = '_design/medic:staged';
 const HORTI_UPGRADE_DOC = 'horti-upgrade';
 
 const install = require('./install');
@@ -105,17 +106,35 @@ Promise.resolve()
             .changes({
               live: true,
               since: 'now',
-              doc_ids: [ HORTI_UPGRADE_DOC ],
+              doc_ids: [ HORTI_UPGRADE_DOC, LEGACY_0_8_UPGRADE_DOC],
               include_docs: true,
               attachments: true,
               timeout: false,
             })
             .on('change', change => {
-              debug(`Change in ${HORTI_UPGRADE_DOC} detected`);
               if (!change.deleted) {
+                if (change.doc._id === HORTI_UPGRADE_DOC) {
+                  info(`Change in ${HORTI_UPGRADE_DOC} detected`);
                   return install.install(change.doc, mode, apps, false).catch(fatality);
-              } else {
-                debug('Ignoring our own delete');
+                }
+
+                if (change.doc._id === LEGACY_0_8_UPGRADE_DOC) {
+                  info('Legacy <=0.8 upgrade detected, converting…');
+
+                  const legacyDeployInfo = change.doc.deploy_info;
+
+                  return DB.app.remove(change.doc)
+                    .then(() => DB.app.put({
+                      _id: HORTI_UPGRADE_DOC,
+                      user: legacyDeployInfo.user,
+                      created: legacyDeployInfo.timestamp,
+                      build_info: {
+                        namespace: 'medic',
+                        application: 'medic',
+                        version: legacyDeployInfo.version
+                      }
+                    }));
+                }
               }
             })
             .on('error', fatality);
