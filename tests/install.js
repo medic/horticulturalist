@@ -108,7 +108,7 @@ describe('Installation flow', () => {
         { doc: {
           _id: '_design/:staged:some-more-views',
           views: {
-            another_view: 'the map etc',
+            lib: 'shared libaries that is not a view even though it is located here',
             yet_another_view: 'the map etc'
           }
         }}
@@ -121,7 +121,7 @@ describe('Installation flow', () => {
         DB.app.query.callCount.should.equal(2);
         DB.app.query.args[0][0].should.equal(':staged:some-views/a_view');
         DB.app.query.args[0][1].should.deep.equal({limit: 1});
-        DB.app.query.args[1][0].should.equal(':staged:some-more-views/another_view');
+        DB.app.query.args[1][0].should.equal(':staged:some-more-views/yet_another_view');
       });
     });
   });

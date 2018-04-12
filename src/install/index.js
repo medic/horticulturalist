@@ -71,7 +71,7 @@ const warmViews = () => {
   };
 
   const firstView = ddoc =>
-    `${ddoc._id.replace('_design/', '')}/${Object.keys(ddoc.views)[0]}`;
+    `${ddoc._id.replace('_design/', '')}/${Object.keys(ddoc.views).find(k => k !== 'lib')}`;
 
   return utils.getStagedDdocs(true)
     .then(ddocs => {
