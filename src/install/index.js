@@ -1,14 +1,11 @@
 const { info, debug, stage } = require('../log'),
       DB = require('../dbs');
 
-// TODO: move to this so that multiple ddocs make sense and are clear
-// deployable._id = `_design/:staged:${deployDoc.build_info.version}:${deployDoc.build_info.application}`;
-const stageDdoc = doc => {
-  doc._id = doc._id.replace('_design/', '_design/:staged:');
-  delete doc._rev;
+const utils = require('./utils');
 
-  return doc;
-};
+// TODO: const stage = (num, message) => Promise.resolve();
+// or (num, message, fn, ...args) => Promise.resolve();
+// or (message, fn, ...args) => Promise.resolve(); (auto-num)
 
 const keyFromDeployDoc = deployDoc => [
   deployDoc.build_info.namespace,
@@ -16,35 +13,15 @@ const keyFromDeployDoc = deployDoc => [
   deployDoc.build_info.version
 ].join(':');
 
-const stagedDdocs = includeDocs =>
-  DB.app.allDocs({
-    startkey: '_design/:staged:',
-    endkey: '_design/:staged:\ufff0',
-    include_docs: includeDocs
-  }).then(({rows}) => {
-    if (includeDocs) {
-      return rows.map(r => r.doc);
-    } else {
-      return rows.map(r => ({
-        _id: r.id,
-        _rev: r.value.rev
-      }));
-    }
-  });
-
-// TODO: const stage = (num, message) => Promise.resolve();
-// or (num, message, fn, ...args) => Promise.resolve();
-// or (message, fn, ...args) => Promise.resolve(); (auto-num)
-
 const downloadBuild = deployDoc => {
   stage('Downloading and staging install');
   debug(`Downloading ${keyFromDeployDoc(deployDoc)}, this may take some time...`);
-  return DB.builds.get(keyFromDeployDoc(deployDoc), { attachments: true })
+  return DB.builds.get(keyFromDeployDoc(deployDoc), { attachments: true, binary: true })
     .then(deployable => {
       debug(`Got ${deployable._id}, staging`);
 
       deployable._id = `_design/${deployDoc.build_info.application}`;
-      stageDdoc(deployable);
+      utils.stageDdoc(deployable);
       deployable.deploy_info = {
         timestamp: new Date(),
         user: deployDoc.user,
@@ -65,11 +42,13 @@ const downloadBuild = deployDoc => {
 const extractDdocs = ddoc => {
   stage('Extracting ddocs');
   const compiledDocs =
-    JSON.parse(
-      Buffer.from(ddoc._attachments['ddocs/compiled.json'].data, 'base64')
-    ).docs;
+    JSON.parse(ddoc._attachments['ddocs/compiled.json'].data).docs;
 
-  compiledDocs.forEach(stageDdoc);
+  compiledDocs.forEach(utils.stageDdoc);
+
+  // Also stage the main doc!
+  compiledDocs.push(ddoc);
+
   debug(`Storing staged: ${JSON.stringify(compiledDocs.map(d => d._id))}`);
 
   return DB.app.bulkDocs(compiledDocs);
@@ -94,7 +73,7 @@ const warmViews = () => {
   const firstView = ddoc =>
     `${ddoc._id.replace('_design/', '')}/${Object.keys(ddoc.views)[0]}`;
 
-  return stagedDdocs(true)
+  return utils.getStagedDdocs(true)
     .then(ddocs => {
       debug(`Got ${ddocs.length} staged ddocs`);
       const queries = ddocs
@@ -107,7 +86,7 @@ const warmViews = () => {
 
 const clearStagedDdocs = () => {
   debug('Clear existing staged DBs');
-  return stagedDdocs().then(docs => {
+  return utils.getStagedDdocs().then(docs => {
     if (docs.length) {
       docs.forEach(d => d._deleted = true);
 
@@ -132,12 +111,11 @@ const postCleanup = (deployDoc) => {
     });
 };
 
-// The existing deploy code not yet broken up into stages / unit tested
-const legacySteps = (apps, mode, ddoc, firstRun) => {
-  stage('EVERYTHING ELSE');
+const deploySteps = (apps, mode, deployDoc, ddoc, firstRun) => {
+  stage('Deploy');
 
-  const legacy = require('./legacy')(DB.app, apps, mode);
-  return legacy(ddoc, firstRun);
+  const deploy = require('./deploySteps')(apps, mode, deployDoc);
+  return deploy.run(ddoc, firstRun);
 };
 
 module.exports = {
@@ -152,7 +130,7 @@ module.exports = {
       .then(ddoc => {
         return m._extractDdocs(ddoc)
           .then(() => m._warmViews())
-          .then(() => m._legacySteps(apps, mode, ddoc, firstRun));
+          .then(() => m.deploySteps(apps, mode, deployDoc, ddoc, firstRun));
       })
       .then(() => m._postCleanup(deployDoc));
   },
@@ -160,6 +138,6 @@ module.exports = {
   _downloadBuild: downloadBuild,
   _extractDdocs: extractDdocs,
   _warmViews: warmViews,
-  _legacySteps: legacySteps,
+  deploySteps: deploySteps,
   _postCleanup: postCleanup
 };
