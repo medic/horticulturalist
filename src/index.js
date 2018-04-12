@@ -3,7 +3,7 @@ const fs = require('fs-extra'),
       os = require('os'),
       parseArgs = require('minimist');
 
-const { error, info, debug } = require('./log');
+const { error, info } = require('./log');
 const Apps = require('./apps'),
       DB = require('./dbs'),
       bootstrap = require('./bootstrap'),
