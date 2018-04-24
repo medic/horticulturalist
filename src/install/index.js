@@ -1,7 +1,11 @@
-const { info, debug } = require('../log'),
+const { info, debug, stage } = require('../log'),
       DB = require('../dbs');
 
-const STAGED_DDOC_ID = '_design/medic:staging';
+const utils = require('./utils');
+
+// TODO: const stage = (num, message) => Promise.resolve();
+// or (num, message, fn, ...args) => Promise.resolve();
+// or (message, fn, ...args) => Promise.resolve(); (auto-num)
 
 const keyFromDeployDoc = deployDoc => [
   deployDoc.build_info.namespace,
@@ -9,20 +13,15 @@ const keyFromDeployDoc = deployDoc => [
   deployDoc.build_info.version
 ].join(':');
 
-// TODO: const stage = (num, message) => Promise.resolve();
-// or (num, message, fn, ...args) => Promise.resolve();
-// or (message, fn, ...args) => Promise.resolve(); (auto-num)
-
 const downloadBuild = deployDoc => {
-  info('Stage: downloading and staging install');
-  debug(`Downloading stage, getting ${keyFromDeployDoc(deployDoc)}`);
-  return DB.builds.get(keyFromDeployDoc(deployDoc), { attachments: true })
+  stage('Downloading and staging install');
+  debug(`Downloading ${keyFromDeployDoc(deployDoc)}, this may take some time...`);
+  return DB.builds.get(keyFromDeployDoc(deployDoc), { attachments: true, binary: true })
     .then(deployable => {
       debug(`Got ${deployable._id}, staging`);
 
-      // TODO: move to this so that multiple ddocs make sense and are clear
-      // deployable._id = `_design/${deployDoc.build_info.version}:${deployDoc.build_info.application}:staging`;
-      deployable._id = STAGED_DDOC_ID;
+      deployable._id = `_design/${deployDoc.build_info.application}`;
+      utils.stageDdoc(deployable);
       deployable.deploy_info = {
         timestamp: new Date(),
         user: deployDoc.user,
@@ -40,32 +39,83 @@ const downloadBuild = deployDoc => {
     });
 };
 
-const legacySteps = (apps, mode, ddoc, firstRun) => {
-  const legacy = require('./legacy')(DB.app, apps, mode);
-  return legacy(ddoc, firstRun);
+const extractDdocs = ddoc => {
+  stage('Extracting ddocs');
+  const compiledDocs =
+    JSON.parse(ddoc._attachments['ddocs/compiled.json'].data).docs;
+
+  compiledDocs.forEach(utils.stageDdoc);
+
+  // Also stage the main doc!
+  compiledDocs.push(ddoc);
+
+  debug(`Storing staged: ${JSON.stringify(compiledDocs.map(d => d._id))}`);
+
+  return DB.app.bulkDocs(compiledDocs);
 };
 
-const preCleanup = () => {
-  info('Stage: pre-deploy cleanup');
-  return DB.app.get(STAGED_DDOC_ID)
-    .then(existingStagedDdoc => {
-      debug('Deleting existing staged ddoc');
-      return DB.app.remove(existingStagedDdoc);
-    })
-    .catch(err => {
-      if (err.status !== 404) {
-        throw err;
-      }
-      debug('No existing staged ddoc');
+const warmViews = () => {
+  stage('Warming views');
+
+  const probeViews = viewlist => {
+    debug(`Querying the following views ${JSON.stringify(viewlist)}`);
+
+    return Promise.all(viewlist.map(view => DB.app.query(view, {limit: 1})))
+      .then(() => {
+        info('Warming views complete');
+      })
+      .catch(err => {
+        debug(`Warming views failed, (${err.message}), trying again...`);
+        return probeViews(viewlist);
+      });
+  };
+
+  const firstView = ddoc =>
+    `${ddoc._id.replace('_design/', '')}/${Object.keys(ddoc.views).find(k => k !== 'lib')}`;
+
+  return utils.getStagedDdocs(true)
+    .then(ddocs => {
+      debug(`Got ${ddocs.length} staged ddocs`);
+      const queries = ddocs
+        .filter(ddoc => ddoc.views && Object.keys(ddoc.views).length)
+        .map(firstView);
+
+      return probeViews(queries);
     });
 };
 
+const clearStagedDdocs = () => {
+  debug('Clear existing staged DBs');
+  return utils.getStagedDdocs().then(docs => {
+    if (docs.length) {
+      docs.forEach(d => d._deleted = true);
+
+      debug(`Deleting staged ddocs: ${JSON.stringify(docs.map(d => d._id))}`);
+      return DB.app.bulkDocs(docs);
+    }
+  });
+};
+
+const preCleanup = () => {
+  stage('Pre-deploy cleanup');
+  return clearStagedDdocs();
+};
 
 const postCleanup = (deployDoc) => {
-  info('Stage: post-deploy cleanup');
-  deployDoc._deleted = true;
+  stage('Post-deploy cleanup');
 
-  return DB.app.put(deployDoc);
+  return clearStagedDdocs()
+    .then(() => {
+      deployDoc._deleted = true;
+      return DB.app.put(deployDoc);
+    });
+};
+
+const deploySteps = (apps, mode, deployDoc, ddoc, firstRun) => {
+  stage('Deploy');
+
+  const deploy = require('./deploySteps')(apps, mode, deployDoc);
+  return deploy.run(ddoc, firstRun);
 };
 
 module.exports = {
@@ -77,11 +127,17 @@ module.exports = {
     const m = module.exports;
     return m._preCleanup()
       .then(() => m._downloadBuild(deployDoc))
-      .then((ddoc) => m._legacySteps(apps, mode, ddoc, firstRun))
+      .then(ddoc => {
+        return m._extractDdocs(ddoc)
+          .then(() => m._warmViews())
+          .then(() => m.deploySteps(apps, mode, deployDoc, ddoc, firstRun));
+      })
       .then(() => m._postCleanup(deployDoc));
   },
   _preCleanup: preCleanup,
   _downloadBuild: downloadBuild,
-  _legacySteps: legacySteps,
+  _extractDdocs: extractDdocs,
+  _warmViews: warmViews,
+  deploySteps: deploySteps,
   _postCleanup: postCleanup
 };
