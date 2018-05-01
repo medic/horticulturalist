@@ -14,11 +14,11 @@ if (process.env.TESTING) {
       get: unmocked,
       put: unmocked,
       query: unmocked,
-      remove: unmocked
+      remove: unmocked,
+      viewCleanup: unmocked
     },
     builds: {
       get: unmocked,
-      put: unmocked,
       query: unmocked
     }
   };

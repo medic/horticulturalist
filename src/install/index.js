@@ -15,7 +15,7 @@ const keyFromDeployDoc = deployDoc => [
 
 const downloadBuild = deployDoc => {
   stage('Downloading and staging install');
-  debug(`Downloading ${keyFromDeployDoc(deployDoc)}, this may take some time...`);
+  debug(`Downloading ${keyFromDeployDoc(deployDoc)}, this may take some time…`);
   return DB.builds.get(keyFromDeployDoc(deployDoc), { attachments: true, binary: true })
     .then(deployable => {
       debug(`Got ${deployable._id}, staging`);
@@ -106,8 +106,13 @@ const postCleanup = (deployDoc) => {
 
   return clearStagedDdocs()
     .then(() => {
+      debug('Delete deploy ddoc');
       deployDoc._deleted = true;
       return DB.app.put(deployDoc);
+    })
+    .then(() => {
+      debug('Cleanup old views');
+      return DB.app.viewCleanup();
     });
 };
 

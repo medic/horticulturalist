@@ -232,6 +232,7 @@ describe('Installation flow', () => {
       DB.app.put.resolves();
       DB.app.allDocs.resolves({rows: [{id: 'foo', value: {rev: '1-bar'}}]});
       DB.app.bulkDocs.resolves();
+      sinon.stub(DB.app, 'viewCleanup').resolves();
       return install._postCleanup(deployDoc)
         .then(() => {
           DB.app.put.callCount.should.equal(1);
@@ -244,6 +245,7 @@ describe('Installation flow', () => {
             _rev: '1-bar',
             _deleted: true
           }]);
+          DB.app.viewCleanup.callCount.should.equal(1);
         });
     });
   });

@@ -24,6 +24,8 @@ module.exports = (apps, mode, deployDoc) => {
     ({
       name: appNameFromModule(module),
       attachmentName: module,
+      // TODO: this can NPE if the attachment doesn't exist.
+      // make this error clearer
       digest: ddoc._attachments[module].digest,
     });
 
@@ -150,25 +152,26 @@ module.exports = (apps, mode, deployDoc) => {
       });
   };
 
-const updateSymlinkAndRemoveOldVersion = changedApps =>
-  Promise.all(changedApps.map(app => {
-    const livePath = deployPath(app, 'current');
+  const updateSymlinkAndRemoveOldVersion = changedApps => {
+    return Promise.all(changedApps.map(app => {
+      const livePath = deployPath(app, 'current');
 
-    if(fs.existsSync(livePath)) {
-      const linkString = fs.readlinkSync(livePath);
+      if(fs.existsSync(livePath)) {
+        const linkString = fs.readlinkSync(livePath);
 
-      if(fs.existsSync(linkString)) {
-        debug(`Deleting old ${app.name} from ${linkString}…`);
-        fs.removeSync(linkString);
-      } else debug(`Old app not found at ${linkString}.`);
+        if(fs.existsSync(linkString)) {
+          debug(`Deleting old ${app.name} from ${linkString}…`);
+          fs.removeSync(linkString);
+        } else debug(`Old app not found at ${linkString}.`);
 
-      fs.unlinkSync(livePath);
-    }
+        fs.unlinkSync(livePath);
+      }
 
-    fs.symlinkSync(deployPath(app), livePath);
+      fs.symlinkSync(deployPath(app), livePath);
 
-    return Promise.resolve();
-  }));
+      return Promise.resolve();
+    }));
+  };
 
 
   const processDdoc = (ddoc, firstRun) => {
