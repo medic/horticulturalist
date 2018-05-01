@@ -20,12 +20,19 @@ module.exports = (apps, mode, deployDoc) => {
   const appNotAlreadyUnzipped = app =>
     !fs.existsSync(deployPath(app));
 
-  const moduleToApp = (ddoc, module) =>
-    ({
+  const moduleToApp = (ddoc, module) => {
+    if (!ddoc._attachments[module]) {
+      throw Error(`${module} was specified in build_info.node_modules but is not attached`);
+    }
+
+    const app = {
       name: appNameFromModule(module),
       attachmentName: module,
       digest: ddoc._attachments[module].digest,
-    });
+    };
+
+    return app;
+  };
 
   const getChangedApps = ddoc => {
     let apps = [];
@@ -150,25 +157,26 @@ module.exports = (apps, mode, deployDoc) => {
       });
   };
 
-const updateSymlinkAndRemoveOldVersion = changedApps =>
-  Promise.all(changedApps.map(app => {
-    const livePath = deployPath(app, 'current');
+  const updateSymlinkAndRemoveOldVersion = changedApps => {
+    return Promise.all(changedApps.map(app => {
+      const livePath = deployPath(app, 'current');
 
-    if(fs.existsSync(livePath)) {
-      const linkString = fs.readlinkSync(livePath);
+      if(fs.existsSync(livePath)) {
+        const linkString = fs.readlinkSync(livePath);
 
-      if(fs.existsSync(linkString)) {
-        debug(`Deleting old ${app.name} from ${linkString}…`);
-        fs.removeSync(linkString);
-      } else debug(`Old app not found at ${linkString}.`);
+        if(fs.existsSync(linkString)) {
+          debug(`Deleting old ${app.name} from ${linkString}…`);
+          fs.removeSync(linkString);
+        } else debug(`Old app not found at ${linkString}.`);
 
-      fs.unlinkSync(livePath);
-    }
+        fs.unlinkSync(livePath);
+      }
 
-    fs.symlinkSync(deployPath(app), livePath);
+      fs.symlinkSync(deployPath(app), livePath);
 
-    return Promise.resolve();
-  }));
+      return Promise.resolve();
+    }));
+  };
 
 
   const processDdoc = (ddoc, firstRun) => {

@@ -15,7 +15,7 @@ const keyFromDeployDoc = deployDoc => [
 
 const downloadBuild = deployDoc => {
   stage('Downloading and staging install');
-  debug(`Downloading ${keyFromDeployDoc(deployDoc)}, this may take some time...`);
+  debug(`Downloading ${keyFromDeployDoc(deployDoc)}, this may take some time…`);
   return DB.builds.get(keyFromDeployDoc(deployDoc), { attachments: true, binary: true })
     .then(deployable => {
       debug(`Got ${deployable._id}, staging`);
@@ -51,21 +51,30 @@ const extractDdocs = ddoc => {
 
   debug(`Storing staged: ${JSON.stringify(compiledDocs.map(d => d._id))}`);
 
-  return DB.app.bulkDocs(compiledDocs);
+  return DB.app.bulkDocs(compiledDocs)
+    .catch(err => {
+      if (err.code === 'EPIPE') {
+        err.horticulturalist = `Failed to store staged ddocs, you may need to increase CouchDB's max_http_request_size`;
+      }
+
+      throw err;
+    });
 };
 
 const warmViews = () => {
   stage('Warming views');
 
   const probeViews = viewlist => {
-    debug(`Querying the following views ${JSON.stringify(viewlist)}`);
-
     return Promise.all(viewlist.map(view => DB.app.query(view, {limit: 1})))
       .then(() => {
         info('Warming views complete');
       })
       .catch(err => {
-        debug(`Warming views failed, (${err.message}), trying again...`);
+        if (err.code !== 'ESOCKETTIMEDOUT') {
+          throw err;
+        }
+
+        process.stdout.write('.');
         return probeViews(viewlist);
       });
   };
@@ -80,6 +89,7 @@ const warmViews = () => {
         .filter(ddoc => ddoc.views && Object.keys(ddoc.views).length)
         .map(firstView);
 
+      info('Beginning view warming');
       return probeViews(queries);
     });
 };
@@ -98,7 +108,13 @@ const clearStagedDdocs = () => {
 
 const preCleanup = () => {
   stage('Pre-deploy cleanup');
-  return clearStagedDdocs();
+  return clearStagedDdocs()
+    .then(() => {
+      // Free as much space as possible, warming views is expensive as it
+      // doubles the amount of space used by views
+      debug('Starting compact and view cleanup');
+      return Promise.all([DB.app.compact(), DB.app.viewCleanup()]);
+    });
 };
 
 const postCleanup = (deployDoc) => {
@@ -106,8 +122,13 @@ const postCleanup = (deployDoc) => {
 
   return clearStagedDdocs()
     .then(() => {
+      debug('Delete deploy ddoc');
       deployDoc._deleted = true;
       return DB.app.put(deployDoc);
+    })
+    .then(() => {
+      debug('Cleanup old views');
+      return DB.app.viewCleanup();
     });
 };
 

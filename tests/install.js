@@ -19,21 +19,27 @@ describe('Installation flow', () => {
 
   afterEach(() => sinon.restore());
   beforeEach(() => {
-    sinon.stub(DB.app, 'allDocs');
-    sinon.stub(DB.app, 'bulkDocs');
-    sinon.stub(DB.app, 'get');
-    sinon.stub(DB.app, 'put');
-    sinon.stub(DB.app, 'query');
-    sinon.stub(DB.app, 'remove');
-    sinon.stub(DB.builds, 'get');
+    DB.app.allDocs = sinon.stub();
+    DB.app.bulkDocs = sinon.stub();
+    DB.app.get = sinon.stub();
+    DB.app.put = sinon.stub();
+    DB.app.query = sinon.stub();
+    DB.app.remove = sinon.stub();
+    DB.app.viewCleanup = sinon.stub();
+    DB.app.compact = sinon.stub();
+    DB.builds.get = sinon.stub();
   });
 
   describe('Pre cleanup', () => {
     it('deletes docs left over from previous (bad) deploys', () => {
       DB.app.allDocs.resolves({rows: []});
+      DB.app.viewCleanup.resolves();
+      DB.app.compact.resolves();
       return install._preCleanup()
         .then(() => {
           DB.app.allDocs.callCount.should.equal(1);
+          DB.app.viewCleanup.callCount.should.equal(1);
+          DB.app.compact.callCount.should.equal(1);
         });
     });
   });
@@ -232,6 +238,7 @@ describe('Installation flow', () => {
       DB.app.put.resolves();
       DB.app.allDocs.resolves({rows: [{id: 'foo', value: {rev: '1-bar'}}]});
       DB.app.bulkDocs.resolves();
+      DB.app.viewCleanup.resolves();
       return install._postCleanup(deployDoc)
         .then(() => {
           DB.app.put.callCount.should.equal(1);
@@ -244,6 +251,7 @@ describe('Installation flow', () => {
             _rev: '1-bar',
             _deleted: true
           }]);
+          DB.app.viewCleanup.callCount.should.equal(1);
         });
     });
   });
