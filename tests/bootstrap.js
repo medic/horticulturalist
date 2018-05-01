@@ -7,9 +7,9 @@ const bootstrap = require('../src/bootstrap');
 describe('Bootstrap', () => {
   afterEach(() => sinon.restore());
   beforeEach(() => {
-    sinon.stub(DB.app, 'get');
-    sinon.stub(DB.app, 'put');
-    sinon.stub(DB.builds, 'query');
+    DB.app.get = sinon.stub();
+    DB.app.put = sinon.stub();
+    DB.builds.query = sinon.stub();
   });
 
   it('creates an upgrade doc with a known version', () => {

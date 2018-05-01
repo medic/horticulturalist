@@ -98,7 +98,13 @@ const clearStagedDdocs = () => {
 
 const preCleanup = () => {
   stage('Pre-deploy cleanup');
-  return clearStagedDdocs();
+  return clearStagedDdocs()
+    .then(() => {
+      // Free as much space as possible, warming views is expensive as it
+      // doubles the amount of space used by views
+      debug('Starting compact and view cleanup');
+      return Promise.all([DB.app.compact(), DB.app.viewCleanup()]);
+    });
 };
 
 const postCleanup = (deployDoc) => {
