@@ -20,14 +20,19 @@ module.exports = (apps, mode, deployDoc) => {
   const appNotAlreadyUnzipped = app =>
     !fs.existsSync(deployPath(app));
 
-  const moduleToApp = (ddoc, module) =>
-    ({
+  const moduleToApp = (ddoc, module) => {
+    if (!ddoc._attachments[module]) {
+      throw Error(`${module} was specified in build_info.node_modules but is not attached`);
+    }
+
+    const app = {
       name: appNameFromModule(module),
       attachmentName: module,
-      // TODO: this can NPE if the attachment doesn't exist.
-      // make this error clearer
       digest: ddoc._attachments[module].digest,
-    });
+    };
+
+    return app;
+  };
 
   const getChangedApps = ddoc => {
     let apps = [];
