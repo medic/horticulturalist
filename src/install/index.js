@@ -51,21 +51,30 @@ const extractDdocs = ddoc => {
 
   debug(`Storing staged: ${JSON.stringify(compiledDocs.map(d => d._id))}`);
 
-  return DB.app.bulkDocs(compiledDocs);
+  return DB.app.bulkDocs(compiledDocs)
+    .catch(err => {
+      if (err.code === 'EPIPE') {
+        err.horticulturalist = `Failed to store staged ddocs, you may need to increase CouchDB's max_http_request_size`;
+      }
+
+      throw err;
+    });
 };
 
 const warmViews = () => {
   stage('Warming views');
 
   const probeViews = viewlist => {
-    debug(`Querying the following views ${JSON.stringify(viewlist)}`);
-
     return Promise.all(viewlist.map(view => DB.app.query(view, {limit: 1})))
       .then(() => {
         info('Warming views complete');
       })
       .catch(err => {
-        debug(`Warming views failed, (${err.message}), trying again...`);
+        if (err.code !== 'ESOCKETTIMEDOUT') {
+          throw err;
+        }
+
+        process.stdout.write('.');
         return probeViews(viewlist);
       });
   };
@@ -80,6 +89,7 @@ const warmViews = () => {
         .filter(ddoc => ddoc.views && Object.keys(ddoc.views).length)
         .map(firstView);
 
+      info('Beginning view warming');
       return probeViews(queries);
     });
 };
