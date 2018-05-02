@@ -99,6 +99,10 @@ Promise.resolve()
         boot = apps.start();
       }
 
+      const relevantChange = change =>
+        !change.deleted ||
+        (change.doc._id === HORTI_UPGRADE_DOC && !change.doc.log);
+
       return boot
         .then(() => {
           info(`Starting change feed listener…`);
@@ -112,7 +116,7 @@ Promise.resolve()
               timeout: false,
             })
             .on('change', change => {
-              if (!change.deleted) {
+              if (relevantChange(change)) {
                 if (change.doc._id === HORTI_UPGRADE_DOC) {
                   info(`Change in ${HORTI_UPGRADE_DOC} detected`);
                   return install.install(change.doc, mode, apps, false).catch(fatality);

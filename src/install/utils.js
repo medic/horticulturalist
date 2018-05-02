@@ -5,7 +5,6 @@ module.exports = {
   getStagedDdocId: id => id.replace('_design/', '_design/:staged:'),
   getDeployedDdocId: id => id.replace(':staged:', ''),
   stageDdoc: doc => {
-    // TODO: work out if we should delete this?
     doc._id = module.exports.getStagedDdocId(doc._id);
     delete doc._rev;
 

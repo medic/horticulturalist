@@ -1,11 +1,12 @@
-const { info, debug, stage } = require('../log'),
+const { info, debug, stage: stageLog } = require('../log'),
       DB = require('../dbs');
 
 const utils = require('./utils');
 
-// TODO: const stage = (num, message) => Promise.resolve();
-// or (num, message, fn, ...args) => Promise.resolve();
-// or (message, fn, ...args) => Promise.resolve(); (auto-num)
+const stager = deployDoc => message => Promise.all([
+  stageLog(message),
+  utils.appendDeployLog(deployDoc, message)
+]);
 
 const keyFromDeployDoc = deployDoc => [
   deployDoc.build_info.namespace,
@@ -14,7 +15,6 @@ const keyFromDeployDoc = deployDoc => [
 ].join(':');
 
 const downloadBuild = deployDoc => {
-  stage('Downloading and staging install');
   debug(`Downloading ${keyFromDeployDoc(deployDoc)}, this may take some time…`);
   return DB.builds.get(keyFromDeployDoc(deployDoc), { attachments: true, binary: true })
     .then(deployable => {
@@ -40,7 +40,6 @@ const downloadBuild = deployDoc => {
 };
 
 const extractDdocs = ddoc => {
-  stage('Extracting ddocs');
   const compiledDocs =
     JSON.parse(ddoc._attachments['ddocs/compiled.json'].data).docs;
 
@@ -62,8 +61,6 @@ const extractDdocs = ddoc => {
 };
 
 const warmViews = () => {
-  stage('Warming views');
-
   const probeViews = viewlist => {
     return Promise.all(viewlist.map(view => DB.app.query(view, {limit: 1})))
       .then(() => {
@@ -107,7 +104,6 @@ const clearStagedDdocs = () => {
 };
 
 const preCleanup = () => {
-  stage('Pre-deploy cleanup');
   return clearStagedDdocs()
     .then(() => {
       // Free as much space as possible, warming views is expensive as it
@@ -118,8 +114,6 @@ const preCleanup = () => {
 };
 
 const postCleanup = (deployDoc) => {
-  stage('Post-deploy cleanup');
-
   return clearStagedDdocs()
     .then(() => {
       debug('Delete deploy ddoc');
@@ -133,8 +127,6 @@ const postCleanup = (deployDoc) => {
 };
 
 const deploySteps = (apps, mode, deployDoc, ddoc, firstRun) => {
-  stage('Deploy');
-
   const deploy = require('./deploySteps')(apps, mode, deployDoc);
   return deploy.run(ddoc, firstRun);
 };
@@ -145,20 +137,29 @@ module.exports = {
   //       (cause you can intuit them?)
   install: (deployDoc, mode, apps, firstRun) => {
     info(`Deploying new build: ${keyFromDeployDoc(deployDoc)}`);
+
+    const stage = stager(deployDoc);
+
     const m = module.exports;
-    return m._preCleanup()
+    return stage('Pre-deploy cleanup')
+      .then(() => m._preCleanup())
+      .then(() => stage('Downloading and staging install'))
       .then(() => m._downloadBuild(deployDoc))
       .then(ddoc => {
-        return m._extractDdocs(ddoc)
+        return stage('Extracting ddocs')
+          .then(() => m._extractDdocs(ddoc))
+          .then(() => stage('Warming views'))
           .then(() => m._warmViews())
-          .then(() => m.deploySteps(apps, mode, deployDoc, ddoc, firstRun));
+          .then(() => stage('Deploying new installation'))
+          .then(() => m._deploySteps(apps, mode, deployDoc, ddoc, firstRun));
       })
+      .then(() => stage('Post-deploy cleanup'))
       .then(() => m._postCleanup(deployDoc));
   },
   _preCleanup: preCleanup,
   _downloadBuild: downloadBuild,
   _extractDdocs: extractDdocs,
   _warmViews: warmViews,
-  deploySteps: deploySteps,
+  _deploySteps: deploySteps,
   _postCleanup: postCleanup
 };
