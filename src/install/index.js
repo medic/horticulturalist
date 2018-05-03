@@ -1,12 +1,12 @@
 const { info, debug, stage: stageLog } = require('../log'),
       DB = require('../dbs');
 
-const utils = require('./utils');
+const utils = require('../utils');
 
-const stager = deployDoc => message => Promise.all([
-  stageLog(message),
-  utils.appendDeployLog(deployDoc, message)
-]);
+const stager = deployDoc => message => {
+  stageLog(message);
+  return utils.appendDeployLog(deployDoc, message);
+};
 
 const keyFromDeployDoc = deployDoc => [
   deployDoc.build_info.namespace,
@@ -29,14 +29,31 @@ const downloadBuild = deployDoc => {
       };
       delete deployable._rev;
 
-      return DB.app.put(deployable)
-        .then(result => {
+      return utils.update(DB.app, deployable)
+        .then(() => {
           debug(`Staged as ${deployable._id}`);
-          deployable._rev = result.rev;
-
           return deployable;
         });
     });
+};
+
+const writeDdocsIndividually = compiledDocs => {
+  return compiledDocs.reduce((promise, ddoc) => promise
+    .then(() => debug(`Updating ${ddoc._id}`))
+    .then(() => DB.app.get(ddoc._id))
+    .catch(err => {
+      if (err.status !== 404) {
+        throw err;
+      }
+     })
+    .then(existingDdoc => {
+      if (existingDdoc) {
+        ddoc._rev = existingDdoc._rev;
+      }
+
+      return DB.app.put(ddoc);
+    }),
+    Promise.resolve());
 };
 
 const extractDdocs = ddoc => {
@@ -56,13 +73,36 @@ const extractDdocs = ddoc => {
         err.horticulturalist = `Failed to store staged ddocs, you may need to increase CouchDB's max_http_request_size`;
       }
 
+      if (err.code === 'ESOCKETTIMEDOUT') {
+        // Too many ddocs, let's try them one by one
+        debug('Bulk storing timed out, attempting to write each ddoc one by one');
+        return writeDdocsIndividually(compiledDocs);
+      }
+
       throw err;
     });
 };
 
-const warmViews = () => {
+const warmViews = (deployDoc) => {
+  const writeProgress = () => {
+    return DB.active_tasks()
+      .then(tasks => {
+        const relevantTasks = tasks.filter(task =>
+          task.type === 'indexer' && task.design_document.includes(':staged:'));
+
+        const entry = deployDoc.log[deployDoc.log.length - 1];
+
+        entry.indexers = relevantTasks;
+
+        return utils.update(DB.app, deployDoc);
+      })
+      .then(() => process.stdout.write('.'));
+  };
+
   const probeViews = viewlist => {
-    return Promise.all(viewlist.map(view => DB.app.query(view, {limit: 1})))
+    return Promise.all(
+      viewlist.map(view => DB.app.query(view, {limit: 1})).concat(writeProgress())
+    )
       .then(() => {
         info('Warming views complete');
       })
@@ -71,7 +111,6 @@ const warmViews = () => {
           throw err;
         }
 
-        process.stdout.write('.');
         return probeViews(viewlist);
       });
   };
@@ -87,7 +126,13 @@ const warmViews = () => {
         .map(firstView);
 
       info('Beginning view warming');
-      return probeViews(queries);
+
+      deployDoc.log.push({
+        type: 'warm_log'
+      });
+
+      return utils.update(DB.app, deployDoc)
+        .then(() => probeViews(queries));
     });
 };
 
@@ -141,7 +186,8 @@ module.exports = {
     const stage = stager(deployDoc);
 
     const m = module.exports;
-    return stage('Pre-deploy cleanup')
+    return stage(`Horticulturalist deployment of '${keyFromDeployDoc(deployDoc)}' initialising`)
+      .then(() => stage('Pre-deploy cleanup'))
       .then(() => m._preCleanup())
       .then(() => stage('Downloading and staging install'))
       .then(() => m._downloadBuild(deployDoc))
@@ -149,11 +195,11 @@ module.exports = {
         return stage('Extracting ddocs')
           .then(() => m._extractDdocs(ddoc))
           .then(() => stage('Warming views'))
-          .then(() => m._warmViews())
-          .then(() => stage('Deploying new installation'))
+          .then(() => m._warmViews(deployDoc))
+          .then(() => stage('Deploying new installation, the app should prompt to refresh shortly'))
           .then(() => m._deploySteps(apps, mode, deployDoc, ddoc, firstRun));
       })
-      .then(() => stage('Post-deploy cleanup'))
+      .then(() => stage('Post-deploy cleanup, installation complete'))
       .then(() => m._postCleanup(deployDoc));
   },
   _preCleanup: preCleanup,

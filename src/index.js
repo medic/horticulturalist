@@ -100,8 +100,9 @@ Promise.resolve()
       }
 
       const relevantChange = change =>
-        !change.deleted ||
-        (change.doc._id === HORTI_UPGRADE_DOC && !change.doc.log);
+        !change.deleted &&
+        ( (change.id === LEGACY_0_8_UPGRADE_DOC) ||
+          (change.id === HORTI_UPGRADE_DOC && !change.doc.log));
 
       return boot
         .then(() => {

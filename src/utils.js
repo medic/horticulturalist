@@ -1,4 +1,4 @@
-const DB = require('../dbs');
+const DB = require('./dbs');
 
 module.exports = {
   mainDdocId: deployDdoc => `_design/${deployDdoc.build_info.application}`,
@@ -10,8 +10,8 @@ module.exports = {
 
     return doc;
   },
-  getStagedDdocs: (includeDocs, attachments) =>
-    DB.app.allDocs({
+  getStagedDdocs: (includeDocs, attachments) => {
+    return DB.app.allDocs({
       startkey: '_design/:staged:',
       endkey: '_design/:staged:\ufff0',
       include_docs: includeDocs,
@@ -26,5 +26,25 @@ module.exports = {
           _rev: r.value.rev
         }));
       }
-    }),
+    });
+  },
+  appendDeployLog: (deployDoc, message, type='stage') => {
+    if (!deployDoc.log) {
+      deployDoc.log = [];
+    }
+
+    deployDoc.log.push({
+      type: type,
+      datetime: new Date().getTime(),
+      message: message
+    });
+
+    return module.exports.update(DB.app, deployDoc);
+  },
+  update: (db, doc) => {
+    return db.put(doc).then(({rev}) => {
+      doc._rev = rev;
+      return doc;
+    });
+  }
 };

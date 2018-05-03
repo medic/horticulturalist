@@ -6,7 +6,7 @@ const { info, debug } = require('../log'),
       DB = require('../dbs'),
       lockfile = require('../lockfile');
 
-const utils = require('./utils');
+const utils = require('../utils');
 
 module.exports = (apps, mode, deployDoc) => {
   const appNameFromModule = module =>

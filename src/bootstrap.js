@@ -1,4 +1,5 @@
-const DB = require('./dbs');
+const DB = require('./dbs'),
+      utils = require('./utils');
 const { info, debug } = require('./log');
 
 const HORTI_UPGRADE_DOC = 'horti-upgrade';
@@ -58,11 +59,7 @@ module.exports.bootstrap = (version) => {
             upgradeDoc._rev = existingDeployDoc._rev;
           }
 
-          return DB.app.put(upgradeDoc)
-            .then(result => {
-              upgradeDoc._rev = result.rev;
-              return upgradeDoc;
-            });
+          return utils.update(DB.app, upgradeDoc);
         });
     });
 };
