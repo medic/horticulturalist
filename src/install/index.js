@@ -29,7 +29,7 @@ const downloadBuild = deployDoc => {
       };
       delete deployable._rev;
 
-      return utils.update(DB.app, deployable)
+      return utils.update(deployable)
         .then(() => {
           debug(`Staged as ${deployable._id}`);
           return deployable;
@@ -48,7 +48,11 @@ const writeDdocsIndividually = compiledDocs => {
      })
     .then(existingDdoc => {
       if (existingDdoc) {
+        debug(`${ddoc._id} exists at ${existingDdoc._rev}`);
         ddoc._rev = existingDdoc._rev;
+      } else {
+        debug(`${ddoc._id} doesn't exist, writing afresh`);
+        delete ddoc._rev;
       }
 
       return DB.app.put(ddoc);
@@ -87,6 +91,11 @@ const warmViews = (deployDoc) => {
   const writeProgress = () => {
     return DB.active_tasks()
       .then(tasks => {
+        // TODO: make the write-over better here:
+        // Order these sensibly so the UI doesn't have to
+        // If it's new add it
+        // If it was already there update it
+        // If it's gone make its progress 100%
         const relevantTasks = tasks.filter(task =>
           task.type === 'indexer' && task.design_document.includes(':staged:'));
 
@@ -94,7 +103,7 @@ const warmViews = (deployDoc) => {
 
         entry.indexers = relevantTasks;
 
-        return utils.update(DB.app, deployDoc);
+        return utils.update(deployDoc);
       })
       .then(() => process.stdout.write('.'));
   };
@@ -131,7 +140,7 @@ const warmViews = (deployDoc) => {
         type: 'warm_log'
       });
 
-      return utils.update(DB.app, deployDoc)
+      return utils.update(deployDoc)
         .then(() => probeViews(queries));
     });
 };
@@ -171,36 +180,88 @@ const postCleanup = (deployDoc) => {
     });
 };
 
-const deploySteps = (apps, mode, deployDoc, ddoc, firstRun) => {
+const performDeploy = (apps, mode, deployDoc, ddoc, firstRun) => {
   const deploy = require('./deploySteps')(apps, mode, deployDoc);
   return deploy.run(ddoc, firstRun);
 };
+
+const predeploySteps = (deployDoc) => {
+  const stage = stager(deployDoc);
+
+  let ddoc;
+
+  return stage(`Horticulturalist deployment of '${keyFromDeployDoc(deployDoc)}' initialising`)
+    .then(() => stage('Pre-deploy cleanup'))
+    .then(() => preCleanup())
+    .then(() => stage('Downloading and staging install'))
+    .then(() => downloadBuild(deployDoc))
+    .then(stagedDdoc => ddoc = stagedDdoc)
+    .then(() => stage('Extracting ddocs'))
+    .then(() => extractDdocs(ddoc))
+    .then(() => stage('Warming views'))
+    .then(() => warmViews(deployDoc))
+    .then(() => stage('View warming complete, ready to deploy'))
+    .then(() => ddoc);
+};
+
+const deploySteps = (apps, mode, deployDoc, firstRun, ddoc) => {
+  const getApplicationDdoc = () => {
+    // If we got here through the 'install' action type we'll already have this
+    // loaded into memory. Otherwise (ie a 'stage' then 'complete') we need to
+    // load it again.
+    if (ddoc) {
+      return ddoc;
+    } else {
+      debug('Loading application ddoc');
+      const ddocId = utils.getStagedDdocId(`_design/${deployDoc.build_info.application}`);
+      return DB.app.get(ddocId, {
+        attachments: true,
+        binary: true
+      });
+    }
+  };
+
+  const stage = stager(deployDoc);
+  return stage('Initiating deployment')
+    .then(getApplicationDdoc)
+    .then(ddoc => {
+      return stage('Deploying new installation')
+        .then(() => performDeploy(apps, mode, deployDoc, ddoc, firstRun))
+        .then(() => stage('Post-deploy cleanup, installation complete'))
+        .then(() => postCleanup(deployDoc));
+    });
+};
+
+
 
 module.exports = {
   // TODO: when all is said and done
   //       do we still need apps, and first run?
   //       (cause you can intuit them?)
+  //  (
+  //    you know what apps exist because they are in the application ddoc list
+  //    you know if its first run because the apps are either running or they're not
+  //  )
   install: (deployDoc, mode, apps, firstRun) => {
     info(`Deploying new build: ${keyFromDeployDoc(deployDoc)}`);
 
-    const stage = stager(deployDoc);
+    return predeploySteps(deployDoc)
+      .then((ddoc) => deploySteps(apps, mode, deployDoc, firstRun, ddoc));
+  },
+  stage: (deployDoc) => {
+    info(`Staging new build: ${keyFromDeployDoc(deployDoc)}`);
 
-    const m = module.exports;
-    return stage(`Horticulturalist deployment of '${keyFromDeployDoc(deployDoc)}' initialising`)
-      .then(() => stage('Pre-deploy cleanup'))
-      .then(() => m._preCleanup())
-      .then(() => stage('Downloading and staging install'))
-      .then(() => m._downloadBuild(deployDoc))
-      .then(ddoc => {
-        return stage('Extracting ddocs')
-          .then(() => m._extractDdocs(ddoc))
-          .then(() => stage('Warming views'))
-          .then(() => m._warmViews(deployDoc))
-          .then(() => stage('Deploying new installation, the app should prompt to refresh shortly'))
-          .then(() => m._deploySteps(apps, mode, deployDoc, ddoc, firstRun));
-      })
-      .then(() => stage('Post-deploy cleanup, installation complete'))
-      .then(() => m._postCleanup(deployDoc));
+    return predeploySteps(deployDoc)
+      .then(() => {
+        deployDoc.staging_complete = true;
+
+        return utils.update(deployDoc);
+      });
+  },
+  complete: (deployDoc, mode, apps, firstRun) => {
+    info(`Deploying staged build: ${keyFromDeployDoc(deployDoc)}`);
+
+    return deploySteps(apps, mode, deployDoc, firstRun);
   },
   _preCleanup: preCleanup,
   _downloadBuild: downloadBuild,

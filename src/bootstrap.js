@@ -59,7 +59,7 @@ module.exports.bootstrap = (version) => {
             upgradeDoc._rev = existingDeployDoc._rev;
           }
 
-          return utils.update(DB.app, upgradeDoc);
+          return utils.update(upgradeDoc);
         });
     });
 };

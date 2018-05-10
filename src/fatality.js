@@ -6,5 +6,5 @@ module.exports = err => {
   log.error(err);
 
   lockfile.release()
-    .then(() => process.exit(1));
+    .then(() => process.exit(0));
 };

@@ -39,10 +39,10 @@ module.exports = {
       message: message
     });
 
-    return module.exports.update(DB.app, deployDoc);
+    return module.exports.update(deployDoc);
   },
-  update: (db, doc) => {
-    return db.put(doc).then(({rev}) => {
+  update: doc => {
+    return DB.app.put(doc).then(({rev}) => {
       doc._rev = rev;
       return doc;
     });
