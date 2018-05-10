@@ -179,7 +179,7 @@ describe('Daemon', () => {
           daemon._performDeployment.callCount.should.equal(0);
         });
     });
-    it.only('cancels, fires the deployment then re-initiates itself afterwards', () => {
+    it('cancels, fires the deployment then re-initiates itself afterwards', () => {
       daemon._newDeployment.returns(true);
       daemon._performDeployment.returns(Promise.resolve().then(() => {
         // Before starting the deploy the watch must be canceled, otherwise
