@@ -3,7 +3,22 @@ const { info } = require('./log');
 const LEGACY_0_8_UPGRADE_DOC = '_design/medic:staged';
 const HORTI_UPGRADE_DOC = 'horti-upgrade';
 
-const Apps = require('./apps'),
+const ACTIONS = {
+  // A complete installation from start to finish. End result is a deleted
+  // HORTI_UPGRADE_DOC and the system running on the new version.
+  INSTALL: 'install',
+  // A partial installation that aims to complete as much work as possible
+  // without actually deploying to the new version. End result is the
+  // HORTI_UPGRADE_DOC being marked as `staging_complete`, ready to be
+  // COMPLETEd.
+  STAGE: 'stage',
+  // Completes a STAGEd installation. The expectation is that an installation
+  // has already been STAGEd and is ready to be deployed. This expectation is
+  // maintined in the api that writes the HORTI_UPGRADE_DOC.
+  COMPLETE: 'complete'
+};
+
+const appUtils = require('./apps'),
       DB = require('./dbs'),
       install = require('./install'),
       fatality = require('./fatality');
@@ -11,16 +26,16 @@ const Apps = require('./apps'),
 const newDeployment = deployDoc =>
   !!deployDoc &&
   deployDoc._id === HORTI_UPGRADE_DOC &&
-  (deployDoc.action !== 'stage' || !deployDoc.staging_complete);
+  (deployDoc.action !== ACTIONS.STAGE || !deployDoc.staging_complete);
 
 const performDeployment = (deployDoc, mode, apps, firstRun=false) => {
   let deployAction;
 
-  if (!deployDoc.action || deployDoc.action === 'install') {
+  if (!deployDoc.action || deployDoc.action === ACTIONS.INSTALL) {
     deployAction = install.install(deployDoc, mode, apps, firstRun);
-  } else if (deployDoc.action === 'stage') {
+  } else if (deployDoc.action === ACTIONS.STAGE) {
     deployAction = install.stage(deployDoc);
-  } else if (deployDoc.action === 'complete') {
+  } else if (deployDoc.action === ACTIONS.COMPLETE) {
     deployAction = install.complete(deployDoc, mode, apps, firstRun);
   }
 
@@ -81,7 +96,7 @@ module.exports = {
   init: (deployDoc, mode) => {
     info('Initiating horticulturalist daemon');
 
-    const apps = Apps(mode.start, mode.stop);
+    const apps = appUtils(mode.start, mode.stop);
 
     let bootAction;
     if (module.exports._newDeployment(deployDoc)) {

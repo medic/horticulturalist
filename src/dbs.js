@@ -36,6 +36,6 @@ if (process.env.TESTING) {
   module.exports = {
     app: new PouchDB(DEPLOY_URL/*, {ajax: {timeout: 60000}}*/),
     builds: new PouchDB(STAGING_URL),
-    active_tasks: activeTasks
+    activeTasks: activeTasks
   };
 }

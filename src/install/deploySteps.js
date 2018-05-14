@@ -173,11 +173,8 @@ module.exports = (apps, mode, deployDoc) => {
       }
 
       fs.symlinkSync(deployPath(app), livePath);
-
-      return Promise.resolve();
     }));
   };
-
 
   const processDdoc = (ddoc, firstRun) => {
     const changedApps = getChangedApps(ddoc);

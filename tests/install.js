@@ -29,7 +29,7 @@ describe('Installation flow', () => {
     DB.app.viewCleanup = sinon.stub();
     DB.app.compact = sinon.stub();
     DB.builds.get = sinon.stub();
-    DB.active_tasks = sinon.stub();
+    DB.activeTasks = sinon.stub();
   });
 
   describe('Pre cleanup', () => {
@@ -174,7 +174,7 @@ describe('Installation flow', () => {
       ]});
       DB.app.query.resolves();
       DB.app.put.resolves({});
-      DB.active_tasks.resolves([relevantIndexer, irrelevantIndexer]);
+      DB.activeTasks.resolves([relevantIndexer, irrelevantIndexer]);
 
       return install._warmViews(deployDoc)
         .then(() => {
