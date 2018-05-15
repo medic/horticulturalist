@@ -202,24 +202,28 @@ describe('Installation flow', () => {
           });
       });
       it('Deploys primary ddoc when one existed before, copying app settings', () => {
-        DB.app.get.resolves({
+        DB.app.get.withArgs('_design/medic').resolves({
           _id: '_design/medic',
           _rev: '1-existingDdoc',
           app_settings: {
             some: 'settings'
           }
         });
+        DB.app.get.withArgs('settings').rejects({ status: 404 });
         DB.app.put.resolves();
 
         return steps._deployPrimaryDdoc(primaryDdoc)
           .then(() => {
-            DB.app.put.callCount.should.equal(1);
+            DB.app.put.callCount.should.equal(2);
             DB.app.put.args[0][0].should.deep.equal({
+              _id: 'settings',
+              settings: {
+                some: 'settings'
+              }
+            });
+            DB.app.put.args[1][0].should.deep.equal({
               _id: '_design/medic',
               _rev: '1-existingDdoc',
-              app_settings: {
-                some: 'settings'
-              },
               staged: true
             });
           });
