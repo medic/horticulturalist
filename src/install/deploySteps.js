@@ -119,6 +119,25 @@ module.exports = (apps, mode, deployDoc) => {
       });
   };
 
+  const updateSettings = oldSettings => {
+    if (!oldSettings) {
+      return;
+    }
+    return DB.app.get('settings')
+      .catch(err => {
+        if (err.status !== 404) {
+          throw err;
+        }
+        debug('No settings doc found - creating a new one');
+        return { _id: 'settings' };
+      })
+      .then(doc => {
+        doc.settings = oldSettings;
+        return DB.app.put(doc);
+      })
+      .then(() => debug('Settings doc updated'));
+  };
+
   const deployPrimaryDdoc = primaryDdoc => {
     debug(`Primary ddoc: ${primaryDdoc._id}`);
     debug('Checking to see if primary exists already');
@@ -133,18 +152,17 @@ module.exports = (apps, mode, deployDoc) => {
       })
       .then(deployedDdoc => {
         if (deployedDdoc) {
-          debug('It does, copying config to staged ddoc before writing');
-          primaryDdoc.app_settings = deployedDdoc.app_settings;
+          debug('It does, preparing ddoc for upgrade');
           primaryDdoc._rev = deployedDdoc._rev;
+          return updateSettings(deployedDdoc.app_settings);
         } else {
-          debug('It does not');
+          debug('It does not, preparing ddoc for fresh install');
           delete primaryDdoc._rev;
         }
-
-        debug('Writing primary ddoc');
-        return DB.app.put(primaryDdoc)
-          .then(() => debug('Primary ddoc written'));
-      });
+      })
+      .then(() => debug('Writing primary ddoc'))
+      .then(() => DB.app.put(primaryDdoc))
+      .then(() => debug('Primary ddoc written'));
   };
 
   const deployStagedDdocs = () => {
