@@ -1,4 +1,4 @@
-const should = require('chai').should();
+require('chai').should();
 
 const sinon = require('sinon').sandbox.create();
 const DB = require('../src/dbs');
@@ -106,21 +106,17 @@ describe('Installation flow', () => {
       DB.app.get.withArgs('_design/:staged:medic-test').rejects({status: 404});
       DB.app.get.withArgs('_design/:staged:medic').resolves({
         _id: '_design/:staged:medic',
-        _rev: '1-test',
-        ignore: 'ignore the one already in the DB just to be safe'
+        _rev: '1-test'
       });
+      DB.app.put.rejects({status: 409});
 
       return install._extractDdocs(stagedMainDoc).then(() => {
         DB.app.bulkDocs.callCount.should.equal(1);
         DB.app.get.callCount.should.equal(2);
-        DB.app.put.callCount.should.equal(2);
+        DB.app.put.callCount.should.equal(1);
         DB.app.put.args[0][0].should.deep.equal({
           _id: '_design/:staged:medic-test'
         });
-
-        DB.app.put.args[1][0]._id.should.equal('_design/:staged:medic');
-        DB.app.put.args[1][0]._rev.should.equal('1-test');
-        should.not.exist(DB.app.put.args[1][0].ignore);
       });
     });
   });
