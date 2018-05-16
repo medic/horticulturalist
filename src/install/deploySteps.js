@@ -114,7 +114,7 @@ module.exports = (apps, mode, deployDoc) => {
 
   const updateSettings = oldSettings => {
     if (!oldSettings) {
-      return debug('No settings found on primary ddoc - doing nothing');
+      return;
     }
     return DB.app.get('settings')
       .catch(err => {
@@ -145,7 +145,7 @@ module.exports = (apps, mode, deployDoc) => {
       })
       .then(deployedDdoc => {
         if (deployedDdoc) {
-          debug('It does, copying config to settings doc before overwriting');
+          debug('It does, preparing ddoc for upgrade');
           primaryDdoc._rev = deployedDdoc._rev;
           return updateSettings(deployedDdoc.app_settings);
         } else {
