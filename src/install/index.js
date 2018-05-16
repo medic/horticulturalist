@@ -3,9 +3,9 @@ const { info, debug, stage: stageLog } = require('../log'),
 
 const utils = require('../utils');
 
-const stager = deployDoc => message => {
+const stager = deployDoc => (key, message) => {
   stageLog(message);
-  return utils.appendDeployLog(deployDoc, message);
+  return utils.appendDeployLog(deployDoc, {key: key, message: message});
 };
 
 const keyFromDeployDoc = deployDoc => [
@@ -214,17 +214,17 @@ const predeploySteps = (deployDoc) => {
 
   let ddoc;
 
-  return stage(`Horticulturalist deployment of '${keyFromDeployDoc(deployDoc)}' initialising`)
-    .then(() => stage('Pre-deploy cleanup'))
+  return stage('horti.stage.init', `Horticulturalist deployment of '${keyFromDeployDoc(deployDoc)}' initialising`)
+    .then(() => stage('horti.stage.preCleanup', 'Pre-deploy cleanup'))
     .then(() => preCleanup())
-    .then(() => stage('Downloading and staging install'))
+    .then(() => stage('horti.stage.download', 'Downloading and staging install'))
     .then(() => downloadBuild(deployDoc))
     .then(stagedDdoc => ddoc = stagedDdoc)
-    .then(() => stage('Extracting ddocs'))
+    .then(() => stage('horti.stage.extractingDdocs', 'Extracting ddocs'))
     .then(() => extractDdocs(ddoc))
-    .then(() => stage('Warming views'))
+    .then(() => stage('horti.stage.warmingViews', 'Warming views'))
     .then(() => warmViews(deployDoc))
-    .then(() => stage('View warming complete, ready to deploy'))
+    .then(() => stage('horti.stage.readyToDeploy', 'View warming complete, ready to deploy'))
     .then(() => ddoc);
 };
 
@@ -249,9 +249,9 @@ const deploySteps = (apps, mode, deployDoc, firstRun, ddoc) => {
   return stage('Initiating deployment')
     .then(getApplicationDdoc)
     .then(ddoc => {
-      return stage('Deploying new installation')
+      return stage('horti.stage.deploying', 'Deploying new installation')
         .then(() => performDeploy(apps, mode, deployDoc, ddoc, firstRun))
-        .then(() => stage('Post-deploy cleanup, installation complete'))
+        .then(() => stage('horti.stage.postCleanup', 'Post-deploy cleanup, installation complete'))
         .then(() => postCleanup(deployDoc));
     });
 };
