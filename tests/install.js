@@ -4,7 +4,7 @@ const sinon = require('sinon').sandbox.create();
 const DB = require('../src/dbs');
 const install = require('../src/install'),
       deploySteps = require('../src/install/deploySteps'),
-      utils = require('../src/install/utils');
+      utils = require('../src/utils');
 
 describe('Installation flow', () => {
   const deployDoc = {
@@ -14,26 +14,34 @@ describe('Installation flow', () => {
       namespace: 'medic',
       application: 'medic',
       version: '1.0.0'
-    }
+    },
+    log: []
   };
 
   afterEach(() => sinon.restore());
   beforeEach(() => {
-    sinon.stub(DB.app, 'allDocs');
-    sinon.stub(DB.app, 'bulkDocs');
-    sinon.stub(DB.app, 'get');
-    sinon.stub(DB.app, 'put');
-    sinon.stub(DB.app, 'query');
-    sinon.stub(DB.app, 'remove');
-    sinon.stub(DB.builds, 'get');
+    DB.app.allDocs = sinon.stub();
+    DB.app.bulkDocs = sinon.stub();
+    DB.app.get = sinon.stub();
+    DB.app.put = sinon.stub();
+    DB.app.query = sinon.stub();
+    DB.app.remove = sinon.stub();
+    DB.app.viewCleanup = sinon.stub();
+    DB.app.compact = sinon.stub();
+    DB.builds.get = sinon.stub();
+    DB.activeTasks = sinon.stub();
   });
 
   describe('Pre cleanup', () => {
     it('deletes docs left over from previous (bad) deploys', () => {
       DB.app.allDocs.resolves({rows: []});
+      DB.app.viewCleanup.resolves();
+      DB.app.compact.resolves();
       return install._preCleanup()
         .then(() => {
           DB.app.allDocs.callCount.should.equal(1);
+          DB.app.viewCleanup.callCount.should.equal(1);
+          DB.app.compact.callCount.should.equal(1);
         });
     });
   });
@@ -84,13 +92,60 @@ describe('Installation flow', () => {
         DB.app.bulkDocs.callCount.should.equal(1);
         DB.app.bulkDocs.args[0][0].should.deep.equal([{
           _id: '_design/:staged:medic-test'
-        },stagedMainDoc]);
+        }, stagedMainDoc]);
+      });
+    });
+
+    it('Writes attached ddocs individually if the bulk write times out', () => {
+      // These very large writes seem to timeout quite a lot, regardless of timeout
+      // settings used by PouchDB, so we need this to fall back on.
+      // However, bulk delete can only *partially* fail with a socket timeout, writing
+      // some docs and not others, so we also must deal with that.
+
+      DB.app.bulkDocs.rejects({code: 'ESOCKETTIMEDOUT'});
+      DB.app.get.withArgs('_design/:staged:medic-test').rejects({status: 404});
+      DB.app.get.withArgs('_design/:staged:medic').resolves({
+        _id: '_design/:staged:medic',
+        _rev: '1-test'
+      });
+      DB.app.put.rejects({status: 409});
+
+      return install._extractDdocs(stagedMainDoc).then(() => {
+        DB.app.bulkDocs.callCount.should.equal(1);
+        DB.app.get.callCount.should.equal(2);
+        DB.app.put.callCount.should.equal(1);
+        DB.app.put.args[0][0].should.deep.equal({
+          _id: '_design/:staged:medic-test'
+        });
       });
     });
   });
 
   describe('Warming views', () => {
-    it('Finds all staged ddocs and queries a view from each', () => {
+    it('Finds all staged ddocs and queries a view from each, writing progress to the deployDoc', () => {
+      const relevantIndexer = {
+        "changes_done": 5454,
+        "database": "shards/80000000-ffffffff/medic.1525076838",
+        "design_document": "_design/:staged:medic",
+        "pid": "<0.6838.4>",
+        "progress": 7,
+        "started_on": 1376116632,
+        "total_changes": 76215,
+        "type": "indexer",
+        "updated_on": 1376116651
+      };
+      const irrelevantIndexer = {
+        "changes_done": 5454,
+        "database": "shards/80000000-ffffffff/medic.1525076838",
+        "design_document": "_design/medic",
+        "pid": "<0.6838.4>",
+        "progress": 7,
+        "started_on": 1376116632,
+        "total_changes": 76215,
+        "type": "indexer",
+        "updated_on": 1376116651
+      };
+
       DB.app.allDocs.resolves({ rows: [
         { doc: {
           _id: '_design/:staged:no-views'
@@ -114,14 +169,24 @@ describe('Installation flow', () => {
         }}
       ]});
       DB.app.query.resolves();
+      DB.app.put.resolves({});
+      DB.activeTasks.resolves([relevantIndexer, irrelevantIndexer]);
 
-      return install._warmViews()
+      return install._warmViews(deployDoc)
         .then(() => {
         console.log('13243214324312');
         DB.app.query.callCount.should.equal(2);
         DB.app.query.args[0][0].should.equal(':staged:some-views/a_view');
         DB.app.query.args[0][1].should.deep.equal({limit: 1});
         DB.app.query.args[1][0].should.equal(':staged:some-more-views/yet_another_view');
+
+        // First to init the warm log, second after querying for indexes
+        DB.app.put.callCount.should.equal(2);
+        DB.app.put.args[1][0].log.length.should.equal(1);
+        DB.app.put.args[1][0].log[0].should.deep.equal({
+          type: 'warm_log',
+          indexers: [relevantIndexer]
+        });
       });
     });
   });
@@ -232,6 +297,7 @@ describe('Installation flow', () => {
       DB.app.put.resolves();
       DB.app.allDocs.resolves({rows: [{id: 'foo', value: {rev: '1-bar'}}]});
       DB.app.bulkDocs.resolves();
+      DB.app.viewCleanup.resolves();
       return install._postCleanup(deployDoc)
         .then(() => {
           DB.app.put.callCount.should.equal(1);
@@ -244,6 +310,7 @@ describe('Installation flow', () => {
             _rev: '1-bar',
             _deleted: true
           }]);
+          DB.app.viewCleanup.callCount.should.equal(1);
         });
     });
   });

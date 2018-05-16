@@ -4,17 +4,14 @@ const fs = require('fs-extra'),
       parseArgs = require('minimist');
 
 const { error, info } = require('./log');
-const Apps = require('./apps'),
-      DB = require('./dbs'),
+const DB = require('./dbs'),
+      daemon = require('./daemon'),
       bootstrap = require('./bootstrap'),
       fatality = require('./fatality'),
       help = require('./help'),
       lockfile = require('./lockfile');
 
-const LEGACY_0_8_UPGRADE_DOC = '_design/medic:staged';
 const HORTI_UPGRADE_DOC = 'horti-upgrade';
-
-const install = require('./install');
 
 const MODES = {
   development: {
@@ -53,8 +50,6 @@ const mode = argv.dev         ? MODES.development :
              argv['medic-os'] ? MODES.medic_os :
              undefined;
 
-const apps = Apps(mode.start, mode.stop);
-
 if (argv.version || argv.v) {
   help.outputVersion();
   return;
@@ -90,55 +85,7 @@ Promise.resolve()
   })
   .then(deployDoc => {
     if (daemonMode) {
-      info('Initiating horticulturalist daemon');
-
-      let boot;
-      if (deployDoc) {
-        boot = install.install(deployDoc, mode, apps, true);
-      } else {
-        boot = apps.start();
-      }
-
-      return boot
-        .then(() => {
-          info(`Starting change feed listener…`);
-          DB.app
-            .changes({
-              live: true,
-              since: 'now',
-              doc_ids: [ HORTI_UPGRADE_DOC, LEGACY_0_8_UPGRADE_DOC],
-              include_docs: true,
-              attachments: true,
-              timeout: false,
-            })
-            .on('change', change => {
-              if (!change.deleted) {
-                if (change.doc._id === HORTI_UPGRADE_DOC) {
-                  info(`Change in ${HORTI_UPGRADE_DOC} detected`);
-                  return install.install(change.doc, mode, apps, false).catch(fatality);
-                }
-
-                if (change.doc._id === LEGACY_0_8_UPGRADE_DOC) {
-                  info('Legacy <=0.8 upgrade detected, converting…');
-
-                  const legacyDeployInfo = change.doc.deploy_info;
-
-                  return DB.app.remove(change.doc)
-                    .then(() => DB.app.put({
-                      _id: HORTI_UPGRADE_DOC,
-                      user: legacyDeployInfo.user,
-                      created: legacyDeployInfo.timestamp,
-                      build_info: {
-                        namespace: 'medic',
-                        application: 'medic',
-                        version: legacyDeployInfo.version
-                      }
-                    }));
-                }
-              }
-            })
-            .on('error', fatality);
-        });
+      return daemon.init(deployDoc, mode);
     }
   })
   .catch(fatality);

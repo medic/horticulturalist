@@ -9,12 +9,12 @@ For more detailed documentation on how to start Medic using Horticulturalist, [s
 
 ## From `npm`
 
-	npm install horticulturalist
-	COUCH_NODE_NAME=couchdb@localhost COUCH_URL=http://admin:pass@localhost:5984/medic horti --local --bootstrap
+    npm install horticulturalist
+    COUCH_URL=http://admin:pass@localhost:5984/medic horti --local --bootstrap
 
 ## From source
 
-	COUCH_URL=http://admin:pass@localhost:5984/medic node src/index.js --dev
+	COUCH_URL=http://admin:pass@localhost:5984/medic node src --dev
 
 # Options
 
