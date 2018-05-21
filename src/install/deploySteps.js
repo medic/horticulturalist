@@ -133,7 +133,7 @@ module.exports = (apps, mode, deployDoc) => {
       })
       .then(deployedDdoc => {
         if (deployedDdoc) {
-          debug('It does, copying config to staged ddoc before writing');
+          debug('It does');
           primaryDdoc.app_settings = deployedDdoc.app_settings;
           primaryDdoc._rev = deployedDdoc._rev;
         } else {
