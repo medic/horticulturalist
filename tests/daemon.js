@@ -158,6 +158,7 @@ describe('Daemon', () => {
           DB.app.put.callCount.should.equal(1);
           DB.app.put.args[0][0].should.deep.equal({
             _id: 'horti-upgrade',
+            schema_version: 1,
             user: legacyDeployDoc.deploy_info.user,
             created: legacyDeployDoc.deploy_info.timestamp,
             build_info: {
