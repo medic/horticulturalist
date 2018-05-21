@@ -46,5 +46,19 @@ module.exports = {
       doc._rev = rev;
       return doc;
     });
+  },
+  strictBulkDocs: docs => {
+    return DB.app.bulkDocs(docs)
+      .then(result => {
+        const errors = result.filter(r => r.error);
+
+        if (errors.length) {
+          const error = Error('bulkDocs did not complete successfully');
+          error.errors = errors;
+          throw error;
+        }
+
+        return result;
+      });
   }
 };
