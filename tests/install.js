@@ -86,7 +86,7 @@ describe('Installation flow', () => {
     };
 
     it('Takes the ddoc attachment and stores them as staged ddocs', () => {
-      DB.app.bulkDocs.resolves();
+      DB.app.bulkDocs.resolves([]);
 
       return install._extractDdocs(stagedMainDoc).then(() => {
         DB.app.bulkDocs.callCount.should.equal(1);
@@ -238,7 +238,7 @@ describe('Installation flow', () => {
           }]
         });
 
-        DB.app.bulkDocs.resolves();
+        DB.app.bulkDocs.resolves([]);
 
         return steps._deploySecondaryDdocs(secondaryDdocs)
           .then(() => {
@@ -296,7 +296,7 @@ describe('Installation flow', () => {
     it('deletes docs used in deploy', () => {
       DB.app.put.resolves();
       DB.app.allDocs.resolves({rows: [{id: 'foo', value: {rev: '1-bar'}}]});
-      DB.app.bulkDocs.resolves();
+      DB.app.bulkDocs.resolves([]);
       DB.app.viewCleanup.resolves();
       return install._postCleanup(deployDoc)
         .then(() => {
