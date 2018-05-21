@@ -98,14 +98,17 @@ module.exports = {
 
     const apps = appUtils(mode.start, mode.stop);
 
-    let bootAction;
-    if (module.exports._newDeployment(deployDoc)) {
-      bootAction = module.exports._performDeployment(deployDoc, mode, apps, true);
-    } else {
-      bootAction = apps.start();
+    let bootActions = Promise.resolve();
+
+    if (mode.startAppsOnStartup) {
+      bootActions = bootActions.then(() => apps.start());
     }
 
-    return bootAction.then(() => module.exports._watchForDeployments(mode, apps));
+    if (module.exports._newDeployment(deployDoc)) {
+      bootActions = bootActions.then(() => module.exports._performDeployment(deployDoc, mode, apps, true));
+    }
+
+    return bootActions.then(() => module.exports._watchForDeployments(mode, apps));
   },
   _newDeployment: newDeployment,
   _performDeployment: performDeployment,

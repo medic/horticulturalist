@@ -33,6 +33,8 @@ const MODES = {
     deployments: '/srv/software',
     start: ['sudo', '-n', '/boot/svc-start', '{{app}}' ],
     stop: ['sudo', '-n', '/boot/svc-stop', '{{app}}' ],
+    // This starting will be managed by the medicos supervisor. In this
+    // deployment mode we only control the restarting of apps
     startAppsOnStartup: false,
   },
 };
