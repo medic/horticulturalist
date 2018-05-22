@@ -94,7 +94,7 @@ const extractDdocs = ddoc => {
 
   debug(`Storing staged: ${JSON.stringify(compiledDocs.map(d => d._id))}`);
 
-  return DB.app.bulkDocs(compiledDocs)
+  return utils.strictBulkDocs(compiledDocs)
     .catch(err => {
       if (err.code === 'EPIPE') {
         err.horticulturalist = `Failed to store staged ddocs, you may need to increase CouchDB's max_http_request_size`;
@@ -176,7 +176,7 @@ const clearStagedDdocs = () => {
       docs.forEach(d => d._deleted = true);
 
       debug(`Deleting staged ddocs: ${JSON.stringify(docs.map(d => d._id))}`);
-      return DB.app.bulkDocs(docs);
+      return utils.strictBulkDocs(docs);
     }
   });
 };

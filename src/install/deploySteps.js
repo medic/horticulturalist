@@ -114,7 +114,7 @@ module.exports = (apps, mode, deployDoc) => {
         });
 
         debug('Writing secondary ddocs');
-        return DB.app.bulkDocs(secondaryDdocs)
+        return utils.strictBulkDocs(secondaryDdocs)
           .then(results => debug(`Secondary ddocs written: ${JSON.stringify(results)}`));
       });
   };
