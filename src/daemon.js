@@ -65,9 +65,17 @@ const watchForDeployments = (mode, apps) => {
     if (module.exports._newDeployment(deployDoc)) {
       info(`Change in ${HORTI_UPGRADE_DOC} detected`);
       watch.cancel();
-      return module.exports._performDeployment(deployDoc, mode, apps)
-        .then(() => module.exports._watchForDeployments(mode, apps))
-        .catch(fatality);
+
+      // Old builds had no schema_version. New builds should be blocked from
+      // accidentally having no schema version by the builds server's
+      // validate_doc_update function
+      if (!deployDoc.schema_version || deployDoc.schema_version === 1) {
+        return module.exports._performDeployment(deployDoc, mode, apps)
+          .then(() => module.exports._watchForDeployments(mode, apps))
+          .catch(fatality);
+      } else {
+        return fatality(new Error('Cannot handle deploy doc schema_version ' + deployDoc.schema_version));
+      }
     }
 
     if (deployDoc._id === LEGACY_0_8_UPGRADE_DOC) {
@@ -79,6 +87,7 @@ const watchForDeployments = (mode, apps) => {
       return DB.app.remove(deployDoc)
         .then(() => DB.app.put({
           _id: HORTI_UPGRADE_DOC,
+          schema_version: 1,
           user: legacyDeployInfo.user,
           created: legacyDeployInfo.timestamp,
           build_info: {
