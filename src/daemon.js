@@ -18,8 +18,7 @@ const ACTIONS = {
   COMPLETE: 'complete'
 };
 
-const appUtils = require('./apps'),
-      DB = require('./dbs'),
+const DB = require('./dbs'),
       install = require('./install'),
       fatality = require('./fatality');
 
@@ -102,14 +101,12 @@ const watchForDeployments = (mode, apps) => {
 };
 
 module.exports = {
-  init: (deployDoc, mode) => {
+  init: (deployDoc, mode, apps) => {
     info('Initiating horticulturalist daemon');
-
-    const apps = appUtils(mode.start, mode.stop);
 
     let bootActions = Promise.resolve();
 
-    if (mode.startAppsOnStartup) {
+    if (mode.manageAppLifecycle) {
       bootActions = bootActions.then(() => apps.start());
     }
 

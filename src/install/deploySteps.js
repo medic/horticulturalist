@@ -3,8 +3,7 @@ const decompress = require('decompress'),
       path = require('path');
 
 const { info, debug } = require('../log'),
-      DB = require('../dbs'),
-      lockfile = require('../lockfile');
+      DB = require('../dbs');
 
 const utils = require('../utils');
 
@@ -180,7 +179,7 @@ module.exports = (apps, mode, deployDoc) => {
     const changedApps = getChangedApps(ddoc);
     const appsToDeploy = changedApps.length;
 
-    return lockfile.wait()
+    return Promise.resolve()
       .then(() => {
         if (appsToDeploy) {
           return Promise.resolve()
@@ -208,7 +207,6 @@ module.exports = (apps, mode, deployDoc) => {
       })
 
       .then(() => (appsToDeploy || firstRun) && startApps())
-      .then(() => lockfile.release())
       .then(() => true);
   };
 

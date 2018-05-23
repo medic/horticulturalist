@@ -34,10 +34,16 @@ module.exports = (startCmd, stopCmd) => {
           .then(() => debug(`Stopped ${app}.`)),
         Promise.resolve());
 
+  const stopSync = () => {
+    APPS.forEach(app => {
+      execForApp(stopCmd, app);
+    });
+  };
 
   return {
     APPS: APPS,
     start: startApps,
     stop: stopApps,
+    stopSync: stopSync,
   };
 };

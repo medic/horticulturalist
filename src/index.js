@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 const fs = require('fs-extra'),
       os = require('os'),
-      parseArgs = require('minimist');
+      parseArgs = require('minimist'),
+      onExit = require('signal-exit');
 
 const { error, info } = require('./log');
-const DB = require('./dbs'),
+
+const appUtils = require('./apps'),
+      DB = require('./dbs'),
       daemon = require('./daemon'),
       bootstrap = require('./bootstrap'),
       fatality = require('./fatality'),
@@ -19,23 +22,23 @@ const MODES = {
     deployments: './temp/deployments',
     start: [ 'bin/svc-start', './temp/deployments', '{{app}}' ],
     stop: [ 'bin/svc-stop', '{{app}}' ],
-    startAppsOnStartup: true,
+    manageAppLifecycle: true,
   },
   local: {
     name: 'local',
     deployments: `${os.homedir()}/.horticulturalist/deployments`,
     start: [ 'horti-svc-start', `${os.homedir()}/.horticulturalist/deployments`, '{{app}}' ],
     stop: [ 'horti-svc-stop', '{{app}}' ],
-    startAppsOnStartup: true,
+    manageAppLifecycle: true,
   },
   medic_os: {
     name: 'Medic OS',
     deployments: '/srv/software',
     start: ['sudo', '-n', '/boot/svc-start', '{{app}}' ],
     stop: ['sudo', '-n', '/boot/svc-stop', '{{app}}' ],
-    // This starting will be managed by the medicos supervisor. In this
-    // deployment mode we only control the restarting of apps
-    startAppsOnStartup: false,
+    // MedicOS will start and stop apps, though we will still restart them
+    // when upgrading
+    manageAppLifecycle: false,
   },
 };
 
@@ -51,6 +54,7 @@ const mode = argv.dev         ? MODES.development :
              argv.local       ? MODES.local :
              argv['medic-os'] ? MODES.medic_os :
              undefined;
+const apps = appUtils(mode.start, mode.stop);
 
 if (argv.version || argv.v) {
   help.outputVersion();
@@ -73,21 +77,31 @@ if(lockfile.exists()) {
   throw new Error(`Lock file already exists at ${lockfile.path()}.  Cannot start horticulturalising.`);
 }
 
-fs.mkdirs(mode.deployments);
+process.on('uncaughtException', fatality);
 
-info(`Starting Horticulturalist ${require('../package.json').version} ${daemonMode ? 'daemon ' : ''}in ${mode.name} mode`);
-Promise.resolve()
+// clearing of the lockfile is handled by the lockfile library itself
+onExit((code) => {
+  if (mode.manageAppLifecycle) {
+    apps.stopSync();
+  }
+
+  process.exit(code || 0);
+});
+
+lockfile.wait()
   .then(() => {
+    fs.mkdirs(mode.deployments);
+
+    info(`Starting Horticulturalist ${require('../package.json').version} ${daemonMode ? 'daemon ' : ''}in ${mode.name} mode`);
     if (bootstrapVersion) {
       info(`Bootstrapping ${bootstrapVersion}`);
       return bootstrap.bootstrap(bootstrapVersion);
     } else {
       return DB.app.get(HORTI_UPGRADE_DOC).catch(() => null);
     }
-  })
-  .then(deployDoc => {
+  }).then(deployDoc => {
     if (daemonMode) {
-      return daemon.init(deployDoc, mode);
+      return daemon.init(deployDoc, mode, apps);
     }
   })
   .catch(fatality);
