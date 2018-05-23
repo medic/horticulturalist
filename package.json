@@ -20,9 +20,9 @@
     "fs-extra": "^3.0.1",
     "lockfile": "^1.0.4",
     "minimist": "^1.2.0",
-    "pouchdb-adapter-http": "^6.2.0",
-    "pouchdb-core": "^6.2.0",
-    "pouchdb-mapreduce": "^6.2.0",
+    "pouchdb-adapter-http": "^6.4.3",
+    "pouchdb-core": "^6.4.3",
+    "pouchdb-mapreduce": "^6.4.3",
     "request": "^2.85.0",
     "request-promise-native": "^1.0.5",
     "signal-exit": "^3.0.2"
