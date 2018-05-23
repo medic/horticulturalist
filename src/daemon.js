@@ -25,6 +25,7 @@ const appUtils = require('./apps'),
 
 const newDeployment = deployDoc =>
   !!deployDoc &&
+  !deployDoc._deleted &&
   deployDoc._id === HORTI_UPGRADE_DOC &&
   (deployDoc.action !== ACTIONS.STAGE || !deployDoc.staging_complete);
 
