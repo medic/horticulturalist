@@ -6,15 +6,14 @@ const fs = require('fs-extra'),
 
 const { error, info } = require('./log');
 
+const { ACTIONS } = require('./constants');
+
 const appUtils = require('./apps'),
-      DB = require('./dbs'),
       daemon = require('./daemon'),
       bootstrap = require('./bootstrap'),
       fatality = require('./fatality'),
       help = require('./help'),
       lockfile = require('./lockfile');
-
-const HORTI_UPGRADE_DOC = 'horti-upgrade';
 
 const MODES = {
   development: {
@@ -42,9 +41,15 @@ const MODES = {
   },
 };
 
-const argv = parseArgs(process.argv);
+const active = (...things) => things.filter(t => !!t);
 
-if ([argv.dev, argv.local, argv['medic-os']].filter(x => !!x).length !== 1) {
+const argv = parseArgs(process.argv, {
+  default: {
+    daemon: true
+  }
+});
+
+if (active(argv.dev, argv.local, argv['medic-os']).length !== 1) {
   help.outputHelp();
   error('You must pick one mode to run in.');
   return;
@@ -66,12 +71,29 @@ if (!mode || argv.help || argv.h) {
   return;
 }
 
-let bootstrapVersion = argv.bootstrap || argv['only-bootstrap'];
-if (bootstrapVersion === true) {
-  bootstrapVersion = 'master';
+if (active(argv.install, argv.stage, argv['complete-install']).length > 1) {
+  help.outputHelp();
+  error('Pick only one action to perform');
+  return;
 }
 
-const daemonMode = !argv['only-bootstrap'];
+const action = argv.install             ? ACTIONS.INSTALL :
+               argv.stage               ? ACTIONS.STAGE :
+               argv['complete-install'] ? ACTIONS.COMPLETE :
+               undefined;
+
+let version = argv.install || argv.stage;
+if (version === true) {
+  version = 'master';
+}
+
+mode.daemon = argv.daemon;
+
+if (!action && !mode.daemon) {
+  help.outputHelp();
+  error('--no-daemon does not do anything without also specifiying an action');
+  return;
+}
 
 if(lockfile.exists()) {
   throw new Error(`Lock file already exists at ${lockfile.path()}.  Cannot start horticulturalising.`);
@@ -81,7 +103,7 @@ process.on('uncaughtException', fatality);
 
 // clearing of the lockfile is handled by the lockfile library itself
 onExit((code) => {
-  if (mode.manageAppLifecycle) {
+  if (mode.manageAppLifecycle && mode.daemon) {
     apps.stopSync();
   }
 
@@ -92,16 +114,18 @@ lockfile.wait()
   .then(() => {
     fs.mkdirs(mode.deployments);
 
-    info(`Starting Horticulturalist ${require('../package.json').version} ${daemonMode ? 'daemon ' : ''}in ${mode.name} mode`);
-    if (bootstrapVersion) {
-      info(`Bootstrapping ${bootstrapVersion}`);
-      return bootstrap.bootstrap(bootstrapVersion);
+    info(`Starting Horticulturalist ${require('../package.json').version} ${mode.daemon ? 'daemon ' : ''}in ${mode.name} mode`);
+
+    if (action === ACTIONS.INSTALL) {
+      return bootstrap.install(version);
+    } else if (action === ACTIONS.STAGE) {
+      return bootstrap.stage(version);
+    } else if (action === ACTIONS.COMPLETE) {
+      return bootstrap.complete();
     } else {
-      return DB.app.get(HORTI_UPGRADE_DOC).catch(() => null);
+      return bootstrap.existing();
     }
   }).then(deployDoc => {
-    if (daemonMode) {
       return daemon.init(deployDoc, mode, apps);
-    }
   })
   .catch(fatality);

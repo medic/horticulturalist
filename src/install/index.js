@@ -246,7 +246,7 @@ const deploySteps = (apps, mode, deployDoc, firstRun, ddoc) => {
   };
 
   const stage = stager(deployDoc);
-  return stage('Initiating deployment')
+  return stage('horti.stage.initDeploy', 'Initiating deployment')
     .then(getApplicationDdoc)
     .then(ddoc => {
       return stage('horti.stage.deploying', 'Deploying new installation')

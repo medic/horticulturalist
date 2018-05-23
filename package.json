@@ -28,6 +28,7 @@
     "signal-exit": "^3.0.2"
   },
   "devDependencies": {
+    "chai-as-promised": "^7.1.1",
     "chai": "^4.1.2",
     "jshint": "^2.9.4",
     "mocha": "^5.0.0",

@@ -1,22 +1,10 @@
 const { info } = require('./log');
 
-const LEGACY_0_8_UPGRADE_DOC = '_design/medic:staged';
-const HORTI_UPGRADE_DOC = 'horti-upgrade';
-
-const ACTIONS = {
-  // A complete installation from start to finish. End result is a deleted
-  // HORTI_UPGRADE_DOC and the system running on the new version.
-  INSTALL: 'install',
-  // A partial installation that aims to complete as much work as possible
-  // without actually deploying to the new version. End result is the
-  // HORTI_UPGRADE_DOC being marked as `staging_complete`, ready to be
-  // COMPLETEd.
-  STAGE: 'stage',
-  // Completes a STAGEd installation. The expectation is that an installation
-  // has already been STAGEd and is ready to be deployed. This expectation is
-  // maintined in the api that writes the HORTI_UPGRADE_DOC.
-  COMPLETE: 'complete'
-};
+const {
+  LEGACY_0_8_UPGRADE_DOC,
+  HORTI_UPGRADE_DOC,
+  ACTIONS
+} = require('./constants');
 
 const DB = require('./dbs'),
       install = require('./install'),
@@ -103,11 +91,9 @@ const watchForDeployments = (mode, apps) => {
 
 module.exports = {
   init: (deployDoc, mode, apps) => {
-    info('Initiating horticulturalist daemon');
-
     let bootActions = Promise.resolve();
 
-    if (mode.manageAppLifecycle) {
+    if (mode.manageAppLifecycle && mode.daemon) {
       bootActions = bootActions.then(() => apps.start());
     }
 
@@ -115,7 +101,11 @@ module.exports = {
       bootActions = bootActions.then(() => module.exports._performDeployment(deployDoc, mode, apps, true));
     }
 
-    return bootActions.then(() => module.exports._watchForDeployments(mode, apps));
+    if (mode.daemon) {
+      bootActions = bootActions.then(() => module.exports._watchForDeployments(mode, apps));
+    }
+
+    return bootActions;
   },
   _newDeployment: newDeployment,
   _performDeployment: performDeployment,
