@@ -187,9 +187,14 @@ module.exports = (apps, mode, deployDoc) => {
             .then(() => unzipChangedApps(ddoc, changedApps))
             .then(() => info('Changed apps unzipped.'))
 
-            .then(() => info('Stopping all apps…', apps.APPS))
-            .then(() => apps.stop())
-            .then(() => info('All apps stopped.'));
+            .then(() => {
+              if (mode.daemon) {
+                return Promise.resolve()
+                  .then(() => info('Stopping all apps…', apps.APPS))
+                  .then(() => apps.stop())
+                  .then(() => info('All apps stopped.'));
+              }
+            });
         } else {
           debug('No apps to deploy');
         }
@@ -206,8 +211,11 @@ module.exports = (apps, mode, deployDoc) => {
         }
       })
 
-      .then(() => (appsToDeploy || firstRun) && startApps())
-      .then(() => true);
+      .then(() => {
+        if (mode.daemon && (appsToDeploy || firstRun)) {
+          return startApps();
+        }
+      });
   };
 
   const moduleWithContext = {

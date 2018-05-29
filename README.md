@@ -9,8 +9,8 @@ For more detailed documentation on how to start Medic using Horticulturalist, [s
 
 ## From `npm`
 
-    npm install horticulturalist
-    COUCH_URL=http://admin:pass@localhost:5984/medic horti --local --bootstrap
+    npm install -g horticulturalist
+    COUCH_URL=http://admin:pass@localhost:5984/medic horti --local --install
 
 ## From source
 
@@ -31,12 +31,17 @@ Pick one mode to run in:
         Only of interest to those who deploy using MedicOS. Deploys apps using
         the MedicOS daemon.
 
-Additional options:
+You can also specify a deployment action to perform:
 
-    --bootstrap[=buildname|@type]
+    --install[=buildname|@type]
         Download the latest master (or specified) build and deploy to the
         local db at startup. Buildname can either be an exact build name (eg
         'master'), or @type for the latest of that type (eg @release or @beta).
-    --only-bootstrap[=buildname|@type]
-        Like above this bootstraps to the given build, but doesn't start the 
-        daemon or deploy any applications
+    --stage[=buildname|@type]
+        The same as install, but prepares a deploy and does not actually 
+        install and deploy it.
+    --complete-install
+        Completes a staged install or errors if one does not exist.
+    --no-daemon
+        Does not start node modules or watch for new installations, but does 
+        perform one of the above actions if specified.

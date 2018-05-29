@@ -2,7 +2,19 @@ const DB = require('./dbs'),
       utils = require('./utils');
 const { info, debug } = require('./log');
 
-const HORTI_UPGRADE_DOC = 'horti-upgrade';
+const {
+  HORTI_UPGRADE_DOC,
+  ACTIONS
+} = require('./constants');
+
+const getUpgradeDoc = () => {
+  return DB.app.get(HORTI_UPGRADE_DOC)
+    .catch(err => {
+      if (err.status !== 404) {
+        throw err;
+      }
+    });
+};
 
 const buildInfo = (version) => {
   if (version.startsWith('@')) {
@@ -35,14 +47,9 @@ const buildInfo = (version) => {
   }
 };
 
-module.exports.bootstrap = (version) => {
-  info(`Bootstrapping to ${version}`);
-  return DB.app.get(HORTI_UPGRADE_DOC)
-    .catch(err => {
-      if (err.status !== 404) {
-        throw err;
-      }
-    })
+const initDeploy = (action, version) => {
+  info(`Doing ${action} to ${version}`);
+  return getUpgradeDoc()
     .then(existingDeployDoc => {
       return buildInfo(version)
         .then(buildInfo => {
@@ -50,8 +57,9 @@ module.exports.bootstrap = (version) => {
 
           const upgradeDoc = {
               _id: HORTI_UPGRADE_DOC,
-              user: 'horticulturalist bootstrap',
+              user: 'horticulturalist cli',
               created: new Date().getTime(),
+              action: action,
               build_info: buildInfo
           };
 
@@ -62,4 +70,27 @@ module.exports.bootstrap = (version) => {
           return utils.update(upgradeDoc);
         });
     });
+};
+
+const completeDeploy = () => {
+  return getUpgradeDoc()
+    .then(upgradeDoc => {
+      if (!upgradeDoc) {
+        throw Error('There is no installation to complete');
+      }
+      if (!upgradeDoc.staging_complete) {
+        throw Error('A deploy exists but it is not ready to complete');
+      }
+
+      upgradeDoc.action = ACTIONS.COMPLETE;
+
+      return utils.update(upgradeDoc);
+    });
+};
+
+module.exports = {
+  install: version => initDeploy(ACTIONS.INSTALL, version),
+  stage: version => initDeploy(ACTIONS.STAGE, version),
+  complete: completeDeploy,
+  existing: getUpgradeDoc
 };
