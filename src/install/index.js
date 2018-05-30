@@ -115,21 +115,41 @@ const warmViews = (deployDoc) => {
   const writeProgress = () => {
     return DB.activeTasks()
       .then(tasks => {
-        // TODO: make the write-over better here:
-        // Order these sensibly so the UI doesn't have to
-        // If it's new add it
-        // If it was already there update it
-        // If it's gone make its progress 100%
         const relevantTasks = tasks.filter(task =>
           task.type === 'indexer' && task.design_document.includes(':staged:'));
 
         const entry = deployDoc.log[deployDoc.log.length - 1];
 
-        entry.indexers = relevantTasks;
+        entry.indexers = updateIndexers(entry.indexers, relevantTasks);
 
         return utils.update(deployDoc);
       })
       .then(() => process.stdout.write('.'));
+  };
+
+  const updateIndexers = (indexers, activeTasks) => {
+    indexers = indexers || [];
+
+    indexers.forEach(indexer => Object.keys(indexer.tasks).forEach(pid => indexer.tasks[pid] = 100));
+
+    activeTasks.forEach(task => {
+      let indexer = indexers.find(indexer => indexer.design_document === task.design_document);
+      if (!indexer) {
+        indexer = {
+          design_document: task.design_document,
+          tasks: {}
+        };
+        indexers.push(indexer);
+      }
+      indexer.tasks[task.pid] = task.progress;
+    });
+
+    indexers.forEach(indexer => {
+      const tasks = Object.keys(indexer.tasks);
+      indexer.progress = Math.round(tasks.reduce((progress, pid) => progress + indexer.tasks[pid], 0) / tasks.length);
+    });
+
+    return indexers;
   };
 
   const probeViews = viewlist => {
@@ -138,6 +158,7 @@ const warmViews = (deployDoc) => {
     )
       .then(() => {
         info('Warming views complete');
+        return writeProgress();
       })
       .catch(err => {
         if (err.code !== 'ESOCKETTIMEDOUT') {
