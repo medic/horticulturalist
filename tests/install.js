@@ -202,50 +202,50 @@ describe('Installation flow', () => {
     it('Groups active tasks by ddoc and calculates an overall progress', () => {
       const indexers = [
         [
-          { database: 'shard/1/medic', design_document: '_design/:staged:medic', progress: 3, pid: 's-m-1', type: 'indexer' },
-          { database: 'shard/2/medic', design_document: '_design/:staged:medic', progress: 4, pid: 's-m-2', type: 'indexer' },
-          { database: 'shard/3/medic', design_document: '_design/:staged:medic', progress: 2, pid: 's-m-3', type: 'indexer' },
+          { database: 'shard1', design_document: ':staged:medic', progress: 3, pid: 's-m-1', type: 'indexer' },
+          { database: 'shard2', design_document: ':staged:medic', progress: 4, pid: 's-m-2', type: 'indexer' },
+          { database: 'shard3', design_document: ':staged:medic', progress: 2, pid: 's-m-3', type: 'indexer' },
 
-          { database: 'shard/1/medic', design_document: '_design/:staged:medic-client', progress: 7, pid: 's-mc-1', type: 'indexer' },
-          { database: 'shard/2/medic', design_document: '_design/:staged:medic-client', progress: 10, pid: 's-mc-2', type: 'indexer' },
-          { database: 'shard/3/medic', design_document: '_design/:staged:medic-client', progress: 5, pid: 's-mc-3', type: 'indexer' },
+          { database: 'shard1', design_document: ':staged:medic-client', progress: 7, pid: 's-mc-1', type: 'indexer' },
+          { database: 'shard2', design_document: ':staged:medic-client', progress: 10, pid: 's-mc-2', type: 'indexer' },
+          { database: 'shard3', design_document: ':staged:medic-client', progress: 5, pid: 's-mc-3', type: 'indexer' },
 
-          { database: 'shard/1/medic', design_document: '_design/medic', progress: 77, pid: 'm-1', type: 'indexer' },
-          { database: 'shard/2/medic', design_document: '_design/medic', progress: 99, pid: 'm-2', type: 'indexer' },
-          { database: 'shard/3/medic', design_document: '_design/medic', progress: 52, pid: 'm-3', type: 'indexer' },
+          { database: 'shard1', design_document: 'medic', progress: 77, pid: 'm-1', type: 'indexer' },
+          { database: 'shard2', design_document: 'medic', progress: 99, pid: 'm-2', type: 'indexer' },
+          { database: 'shard3', design_document: 'medic', progress: 52, pid: 'm-3', type: 'indexer' },
         ],
         [
-          { database: 'shard/1/medic', design_document: '_design/:staged:medic', progress: 22, pid: 's-m-1', type: 'indexer' },
-          { database: 'shard/2/medic', design_document: '_design/:staged:medic', progress: 29, pid: 's-m-2', type: 'indexer' },
-          { database: 'shard/3/medic', design_document: '_design/:staged:medic', progress: 18, pid: 's-m-3', type: 'indexer'},
+          { database: 'shard1', design_document: ':staged:medic', progress: 22, pid: 's-m-1', type: 'indexer' },
+          { database: 'shard2', design_document: ':staged:medic', progress: 29, pid: 's-m-2', type: 'indexer' },
+          { database: 'shard3', design_document: ':staged:medic', progress: 18, pid: 's-m-3', type: 'indexer'},
 
-          { database: 'shard/1/medic', design_document: '_design/:staged:medic-client', progress: 36, pid: 's-mc-1', type: 'indexer' },
-          { database: 'shard/2/medic', design_document: '_design/:staged:medic-client', progress: 41, pid: 's-mc-2', type: 'indexer' },
-          { database: 'shard/3/medic', design_document: '_design/:staged:medic-client', progress: 55, pid: 's-mc-3', type: 'indexer' },
+          { database: 'shard1', design_document: ':staged:medic-client', progress: 36, pid: 's-mc-1', type: 'indexer' },
+          { database: 'shard2', design_document: ':staged:medic-client', progress: 41, pid: 's-mc-2', type: 'indexer' },
+          { database: 'shard3', design_document: ':staged:medic-client', progress: 55, pid: 's-mc-3', type: 'indexer' },
 
-          { database: 'shard/1/medic', design_document: '_design/medic', progress: 87, pid: 'm-1', type: 'indexer' },
-          { database: 'shard/3/medic', design_document: '_design/medic', progress: 95, pid: 'm-3', type: 'indexer' },
+          { database: 'shard1', design_document: 'medic', progress: 87, pid: 'm-1', type: 'indexer' },
+          { database: 'shard3', design_document: 'medic', progress: 95, pid: 'm-3', type: 'indexer' },
         ],
         [
-          { database: 'shard/1/medic', design_document: '_design/:staged:medic', progress: 49, pid: 's-m-1', type: 'indexer' },
-          { database: 'shard/2/medic', design_document: '_design/:staged:medic', progress: 65, pid: 's-m-2', type: 'indexer' },
-          { database: 'shard/3/medic', design_document: '_design/:staged:medic', progress: 38, pid: 's-m-3', type: 'indexer' },
+          { database: 'shard1', design_document: ':staged:medic', progress: 49, pid: 's-m-1', type: 'indexer' },
+          { database: 'shard2', design_document: ':staged:medic', progress: 65, pid: 's-m-2', type: 'indexer' },
+          { database: 'shard3', design_document: ':staged:medic', progress: 38, pid: 's-m-3', type: 'indexer' },
 
-          { database: 'shard/1/medic', design_document: '_design/:staged:medic-client', progress: 65, pid: 's-mc-1', type: 'indexer' },
-          { database: 'shard/2/medic', design_document: '_design/:staged:medic-client', progress: 72, pid: 's-mc-2', type: 'indexer' },
-          { database: 'shard/3/medic', design_document: '_design/:staged:medic-client', progress: 81, pid: 's-mc-3', type: 'indexer' },
+          { database: 'shard1', design_document: ':staged:medic-client', progress: 65, pid: 's-mc-1', type: 'indexer' },
+          { database: 'shard2', design_document: ':staged:medic-client', progress: 72, pid: 's-mc-2', type: 'indexer' },
+          { database: 'shard3', design_document: ':staged:medic-client', progress: 81, pid: 's-mc-3', type: 'indexer' },
         ],
         [
-          { database: 'shard/1/medic', design_document: '_design/:staged:medic', progress: 72, pid: 's-m-1', type: 'indexer' },
-          { database: 'shard/2/medic', design_document: '_design/:staged:medic', progress: 92, pid: 's-m-2', type: 'indexer' },
-          { database: 'shard/3/medic', design_document: '_design/:staged:medic', progress: 75, pid: 's-m-3', type: 'indexer' },
+          { database: 'shard1', design_document: ':staged:medic', progress: 72, pid: 's-m-1', type: 'indexer' },
+          { database: 'shard2', design_document: ':staged:medic', progress: 92, pid: 's-m-2', type: 'indexer' },
+          { database: 'shard3', design_document: ':staged:medic', progress: 75, pid: 's-m-3', type: 'indexer' },
 
-          { database: 'shard/1/medic', design_document: '_design/:staged:medic-client', progress: 93, pid: 's-mc-1', type: 'indexer' },
-          { database: 'shard/2/medic', design_document: '_design/:staged:medic-client', progress: 97, pid: 's-mc-2', type: 'indexer' },
+          { database: 'shard1', design_document: ':staged:medic-client', progress: 93, pid: 's-mc-1', type: 'indexer' },
+          { database: 'shard2', design_document: ':staged:medic-client', progress: 97, pid: 's-mc-2', type: 'indexer' },
         ],
         [
-          { database: 'shard/1/medic', design_document: '_design/:staged:medic', progress: 92, pid: 's-m-1', type: 'indexer' },
-          { database: 'shard/3/medic', design_document: '_design/:staged:medic', progress: 94, pid: 's-m-3', type: 'indexer' },
+          { database: 'shard1', design_document: ':staged:medic', progress: 92, pid: 's-m-1', type: 'indexer' },
+          { database: 'shard3', design_document: ':staged:medic', progress: 94, pid: 's-m-3', type: 'indexer' },
         ],
         []
       ];
@@ -253,7 +253,7 @@ describe('Installation flow', () => {
 
       DB.app.allDocs.resolves({ rows: [
           { doc: {
-              _id: '_design/:staged:some-views',
+              _id: ':staged:some-views',
               views: {
                 a_view: 'the map etc'
               }
@@ -279,12 +279,12 @@ describe('Installation flow', () => {
         deployDoc.log.length.should.equal(1);
         deployDoc.log[0].indexers.should.deep.equal([
           {
-            design_document: '_design/:staged:medic',
+            design_document: ':staged:medic',
             progress: 100,
             tasks: { 's-m-1': 100, 's-m-2': 100, 's-m-3': 100 }
           },
           {
-            design_document: '_design/:staged:medic-client',
+            design_document: ':staged:medic-client',
             progress: 100,
             tasks: { 's-mc-1': 100, 's-mc-2': 100, 's-mc-3': 100 }
           }
@@ -295,12 +295,12 @@ describe('Installation flow', () => {
           type: 'warm_log',
           indexers: [
             {
-              design_document: '_design/:staged:medic',
+              design_document: ':staged:medic',
               progress: 3,
               tasks: { 's-m-1': 3, 's-m-2': 4, 's-m-3': 2 }
             },
             {
-              design_document: '_design/:staged:medic-client',
+              design_document: ':staged:medic-client',
               progress: 7,
               tasks: { 's-mc-1': 7, 's-mc-2': 10, 's-mc-3': 5 }
             }
@@ -311,12 +311,12 @@ describe('Installation flow', () => {
           type: 'warm_log',
           indexers: [
             {
-              design_document: '_design/:staged:medic',
+              design_document: ':staged:medic',
               progress: 23,
               tasks: { 's-m-1': 22, 's-m-2': 29, 's-m-3': 18 }
             },
             {
-              design_document: '_design/:staged:medic-client',
+              design_document: ':staged:medic-client',
               progress: 44,
               tasks: { 's-mc-1': 36, 's-mc-2': 41, 's-mc-3': 55 }
             }
@@ -327,12 +327,12 @@ describe('Installation flow', () => {
           type: 'warm_log',
           indexers: [
             {
-              design_document: '_design/:staged:medic',
+              design_document: ':staged:medic',
               progress: 51,
               tasks: { 's-m-1': 49, 's-m-2': 65, 's-m-3': 38 }
             },
             {
-              design_document: '_design/:staged:medic-client',
+              design_document: ':staged:medic-client',
               progress: 73,
               tasks: { 's-mc-1': 65, 's-mc-2': 72, 's-mc-3': 81 }
             }
@@ -343,12 +343,12 @@ describe('Installation flow', () => {
           type: 'warm_log',
           indexers: [
             {
-              design_document: '_design/:staged:medic',
+              design_document: ':staged:medic',
               progress: 80,
               tasks: { 's-m-1': 72, 's-m-2': 92, 's-m-3': 75 }
             },
             {
-              design_document: '_design/:staged:medic-client',
+              design_document: ':staged:medic-client',
               progress: 97,
               tasks: { 's-mc-1': 93, 's-mc-2': 97, 's-mc-3': 100 }
             }
@@ -359,12 +359,12 @@ describe('Installation flow', () => {
           type: 'warm_log',
           indexers: [
             {
-              design_document: '_design/:staged:medic',
+              design_document: ':staged:medic',
               progress: 95,
               tasks: { 's-m-1': 92, 's-m-2': 100, 's-m-3': 94 }
             },
             {
-              design_document: '_design/:staged:medic-client',
+              design_document: ':staged:medic-client',
               progress: 100,
               tasks: { 's-mc-1': 100, 's-mc-2': 100, 's-mc-3': 100 }
             }
@@ -375,12 +375,12 @@ describe('Installation flow', () => {
           type: 'warm_log',
           indexers: [
             {
-              design_document: '_design/:staged:medic',
+              design_document: ':staged:medic',
               progress: 100,
               tasks: { 's-m-1': 100, 's-m-2': 100, 's-m-3': 100 }
             },
             {
-              design_document: '_design/:staged:medic-client',
+              design_document: ':staged:medic-client',
               progress: 100,
               tasks: { 's-mc-1': 100, 's-mc-2': 100, 's-mc-3': 100 }
             }
