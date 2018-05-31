@@ -173,7 +173,6 @@ describe('Installation flow', () => {
       DB.app.query.resolves();
       DB.app.put.resolves({});
       DB.activeTasks.resolves([relevantIndexer, irrelevantIndexer]);
-      DB.activeTasks.onCall(1).resolves([]);
 
       return install._warmViews(deployDoc)
         .then(() => {
