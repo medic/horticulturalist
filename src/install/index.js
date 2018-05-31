@@ -118,38 +118,52 @@ const warmViews = (deployDoc) => {
         const relevantTasks = tasks.filter(task =>
           task.type === 'indexer' && task.design_document.includes(':staged:'));
 
-        const entry = deployDoc.log[deployDoc.log.length - 1];
-
-        entry.indexers = updateIndexers(entry.indexers, relevantTasks);
-
-        return utils.update(deployDoc);
+        return updateIndexers(relevantTasks);
       })
       .then(() => process.stdout.write('.'));
   };
 
-  const updateIndexers = (indexers, activeTasks) => {
-    indexers = indexers || [];
+  // Groups tasks by `design_document` and calculates the average progress per ddoc
+  // When a task is finished, it disappears from _active_tasks
+  const updateIndexers = (runningTasks) => {
+    const entry = deployDoc.log[deployDoc.log.length - 1],
+          indexers = entry.indexers || [];
 
-    indexers.forEach(indexer => Object.keys(indexer.tasks).forEach(pid => indexer.tasks[pid] = 100));
+    // We assume all previous tasks have finished.
+    indexers.forEach(setTasksToComplete);
+    // If a task is new or still running, it's progress is updated
+    updateRunningTasks(indexers, runningTasks);
+    indexers.forEach(calculateAverageProgress);
 
+    entry.indexers = indexers;
+    return utils.update(deployDoc);
+  };
+
+  const setTasksToComplete = (indexer) => {
+    Object
+      .keys(indexer.tasks)
+      .forEach(pid => {
+        indexer.tasks[pid] = 100;
+      });
+  };
+
+  const calculateAverageProgress = (indexer) => {
+    const tasks = Object.keys(indexer.tasks);
+    indexer.progress = Math.round(tasks.reduce((progress, pid) => progress + indexer.tasks[pid], 0) / tasks.length);
+  };
+
+  const updateRunningTasks = (indexers, activeTasks = []) => {
     activeTasks.forEach(task => {
       let indexer = indexers.find(indexer => indexer.design_document === task.design_document);
       if (!indexer) {
         indexer = {
           design_document: task.design_document,
-          tasks: {}
+          tasks: {},
         };
         indexers.push(indexer);
       }
-      indexer.tasks[task.pid] = task.progress;
+      indexer.tasks[`${task.node}-${task.pid}`] = task.progress;
     });
-
-    indexers.forEach(indexer => {
-      const tasks = Object.keys(indexer.tasks);
-      indexer.progress = Math.round(tasks.reduce((progress, pid) => progress + indexer.tasks[pid], 0) / tasks.length);
-    });
-
-    return indexers;
   };
 
   const probeViews = viewlist => {
@@ -158,7 +172,7 @@ const warmViews = (deployDoc) => {
     )
       .then(() => {
         info('Warming views complete');
-        return writeProgress();
+        return updateIndexers();
       })
       .catch(err => {
         if (err.code !== 'ESOCKETTIMEDOUT') {
