@@ -5,8 +5,8 @@ chai.use(chaiAsPromised);
 const should = chai.should();
 
 const sinon = require('sinon').sandbox.create();
-const DB = require('../src/dbs');
-const bootstrap = require('../src/bootstrap');
+const DB = require('../../src/dbs');
+const bootstrap = require('../../src/bootstrap');
 
 describe('Bootstrap', () => {
   afterEach(() => sinon.restore());

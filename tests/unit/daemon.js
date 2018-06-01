@@ -1,10 +1,10 @@
 const should = require('chai').should();
 const sinon = require('sinon').sandbox.create();
 
-const DB = require('../src/dbs'),
-      install = require('../src/install');
+const DB = require('../../src/dbs'),
+      install = require('../../src/install');
 
-const daemon = require('../src/daemon');
+const daemon = require('../../src/daemon');
 
 describe('Daemon', () => {
   afterEach(() => sinon.restore());
