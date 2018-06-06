@@ -191,22 +191,26 @@ const preCleanup = () => {
     });
 };
 
-const postCleanup = (deployDoc) => {
-  return clearStagedDdocs()
-    .then(() => {
-      debug('Delete deploy ddoc');
-      deployDoc._deleted = true;
-      return DB.app.put(deployDoc);
-    })
-    .then(() => {
-      debug('Cleanup old views');
-      return DB.app.viewCleanup();
-    });
+const postCleanup = (deploy, changedApps, deployDoc) => {
+  return Promise.all([
+    deploy.removeOldVersion(changedApps),
+    clearStagedDdocs()
+      .then(() => {
+        debug('Delete deploy ddoc');
+        deployDoc._deleted = true;
+        return DB.app.put(deployDoc);
+      })
+      .then(() => {
+        debug('Cleanup old views');
+        return DB.app.viewCleanup();
+      })]);
 };
 
 const performDeploy = (apps, mode, deployDoc, ddoc, firstRun) => {
   const deploy = require('./deploySteps')(apps, mode, deployDoc);
-  return deploy.run(ddoc, firstRun);
+  return deploy.run(ddoc, firstRun).then((changedApps) => {
+    return {deploy, changedApps};
+  });
 };
 
 const predeploySteps = (deployDoc) => {
@@ -251,8 +255,10 @@ const deploySteps = (apps, mode, deployDoc, firstRun, ddoc) => {
     .then(ddoc => {
       return stage('horti.stage.deploying', 'Deploying new installation')
         .then(() => performDeploy(apps, mode, deployDoc, ddoc, firstRun))
-        .then(() => stage('horti.stage.postCleanup', 'Post-deploy cleanup, installation complete'))
-        .then(() => postCleanup(deployDoc));
+        .then(({deploy, changedApps}) => {
+          stage('horti.stage.postCleanup', 'Post-deploy cleanup, installation complete');
+          return postCleanup(deploy, changedApps, deployDoc);
+        });
     });
 };
 

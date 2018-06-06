@@ -293,12 +293,16 @@ describe('Installation flow', () => {
   });
 
   describe('Post cleanup', () => {
+    const steps = deploySteps(null, null, deployDoc);
+
     it('deletes docs used in deploy', () => {
       DB.app.put.resolves();
       DB.app.allDocs.resolves({rows: [{id: 'foo', value: {rev: '1-bar'}}]});
       DB.app.bulkDocs.resolves([]);
       DB.app.viewCleanup.resolves();
-      return install._postCleanup(deployDoc)
+      sinon.stub(steps, 'removeOldVersion').resolves();
+
+      return install._postCleanup(steps, [], deployDoc)
         .then(() => {
           DB.app.put.callCount.should.equal(1);
           DB.app.put.args[0][0]._id.should.equal('horti-upgrade');
@@ -311,6 +315,7 @@ describe('Installation flow', () => {
             _deleted: true
           }]);
           DB.app.viewCleanup.callCount.should.equal(1);
+          steps.removeOldVersion.callCount.should.equal(1);
         });
     });
   });

@@ -146,17 +146,21 @@ module.exports = (apps, mode, deployDoc) => {
       });
   };
 
-  const deployStagedDdocs = () => {
+  const deployStagedDdocs = (secondaryOnly=false) => {
     info(`Deploying staged ddocs`);
 
     return moduleWithContext._loadStagedDdocs()
       .then(({primaryDdoc, secondaryDdocs}) => {
         return moduleWithContext._deploySecondaryDdocs(secondaryDdocs)
-          .then(() => moduleWithContext._deployPrimaryDdoc(primaryDdoc));
+          .then(() => {
+            if(!secondaryOnly) {
+              moduleWithContext._deployPrimaryDdoc(primaryDdoc);
+            }
+          });
       });
   };
 
-  const updateSymlinkAndRemoveOldVersion = changedApps => {
+  const updateSymlink = changedApps => {
     return Promise.all(changedApps.map(app => {
       const livePath = deployPath(app, 'current');
 
@@ -164,14 +168,30 @@ module.exports = (apps, mode, deployDoc) => {
         const linkString = fs.readlinkSync(livePath);
 
         if(fs.existsSync(linkString)) {
-          debug(`Deleting old ${app.name} from ${linkString}…`);
-          fs.removeSync(linkString);
+          fs.symlinkSync(linkString, deployPath(app, 'old'));
         } else debug(`Old app not found at ${linkString}.`);
 
         fs.unlinkSync(livePath);
       }
 
       fs.symlinkSync(deployPath(app), livePath);
+    }));
+  };
+
+  const removeOldVersion = changedApps => {
+    return Promise.all(changedApps.map(app => {
+      const oldPath = deployPath(app, 'old');
+
+      if(fs.existsSync(oldPath)) {
+        const linkString = fs.readlinkSync(oldPath);
+
+        if(fs.existsSync(linkString)) {
+          debug(`Deleting old ${app.name} from ${linkString}…`);
+          fs.removeSync(linkString);
+        } else debug(`Old app not found at ${linkString}.`);
+
+        fs.unlinkSync(oldPath);
+      }
     }));
   };
 
@@ -186,7 +206,7 @@ module.exports = (apps, mode, deployDoc) => {
             .then(() => info(`Unzipping changed apps to ${mode.deployments}…`, changedApps))
             .then(() => unzipChangedApps(ddoc, changedApps))
             .then(() => info('Changed apps unzipped.'))
-
+            .then(() => deployStagedDdocs(true))
             .then(() => {
               if (mode.daemon) {
                 return Promise.resolve()
@@ -206,14 +226,16 @@ module.exports = (apps, mode, deployDoc) => {
         if (appsToDeploy) {
           return Promise.resolve()
             .then(() => info('Updating symlinks for changed apps…', changedApps))
-            .then(() => updateSymlinkAndRemoveOldVersion(changedApps))
+            .then(() => updateSymlink(changedApps))
             .then(() => info('Symlinks updated.'));
         }
       })
 
       .then(() => {
         if (mode.daemon && (appsToDeploy || firstRun)) {
-          return startApps();
+          return startApps().then(() => {
+            return changedApps;
+          });
         }
       });
   };
@@ -222,6 +244,7 @@ module.exports = (apps, mode, deployDoc) => {
     run: (ddoc, firstRun) => {
       return processDdoc(ddoc, firstRun);
     },
+    removeOldVersion: (changedApps) => removeOldVersion(changedApps),
     _deployStagedDdocs: deployStagedDdocs,
     _loadStagedDdocs: loadStagedDdocs,
     _deploySecondaryDdocs: deploySecondaryDdocs,
