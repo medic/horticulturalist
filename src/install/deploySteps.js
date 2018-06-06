@@ -146,17 +146,13 @@ module.exports = (apps, mode, deployDoc) => {
       });
   };
 
-  const deployStagedDdocs = (secondaryOnly=false) => {
+  const deployStagedDdocs = () => {
     info(`Deploying staged ddocs`);
 
     return moduleWithContext._loadStagedDdocs()
       .then(({primaryDdoc, secondaryDdocs}) => {
         return moduleWithContext._deploySecondaryDdocs(secondaryDdocs)
-          .then(() => {
-            if(!secondaryOnly) {
-              moduleWithContext._deployPrimaryDdoc(primaryDdoc);
-            }
-          });
+          .then(() => moduleWithContext._deployPrimaryDdoc(primaryDdoc));
       });
   };
 
@@ -206,7 +202,6 @@ module.exports = (apps, mode, deployDoc) => {
             .then(() => info(`Unzipping changed apps to ${mode.deployments}…`, changedApps))
             .then(() => unzipChangedApps(ddoc, changedApps))
             .then(() => info('Changed apps unzipped.'))
-            .then(() => deployStagedDdocs(true))
             .then(() => {
               if (mode.daemon) {
                 return Promise.resolve()
