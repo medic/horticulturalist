@@ -115,21 +115,55 @@ const warmViews = (deployDoc) => {
   const writeProgress = () => {
     return DB.activeTasks()
       .then(tasks => {
-        // TODO: make the write-over better here:
-        // Order these sensibly so the UI doesn't have to
-        // If it's new add it
-        // If it was already there update it
-        // If it's gone make its progress 100%
         const relevantTasks = tasks.filter(task =>
           task.type === 'indexer' && task.design_document.includes(':staged:'));
 
-        const entry = deployDoc.log[deployDoc.log.length - 1];
-
-        entry.indexers = relevantTasks;
-
-        return utils.update(deployDoc);
+        return updateIndexers(relevantTasks);
       })
       .then(() => process.stdout.write('.'));
+  };
+
+  // Groups tasks by `design_document` and calculates the average progress per ddoc
+  // When a task is finished, it disappears from _active_tasks
+  const updateIndexers = (runningTasks) => {
+    const entry = deployDoc.log[deployDoc.log.length - 1],
+          indexers = entry.indexers || [];
+
+    // We assume all previous tasks have finished.
+    indexers.forEach(setTasksToComplete);
+    // If a task is new or still running, it's progress is updated
+    updateRunningTasks(indexers, runningTasks);
+    indexers.forEach(calculateAverageProgress);
+
+    entry.indexers = indexers;
+    return utils.update(deployDoc);
+  };
+
+  const setTasksToComplete = (indexer) => {
+    Object
+      .keys(indexer.tasks)
+      .forEach(pid => {
+        indexer.tasks[pid] = 100;
+      });
+  };
+
+  const calculateAverageProgress = (indexer) => {
+    const tasks = Object.keys(indexer.tasks);
+    indexer.progress = Math.round(tasks.reduce((progress, pid) => progress + indexer.tasks[pid], 0) / tasks.length);
+  };
+
+  const updateRunningTasks = (indexers, activeTasks = []) => {
+    activeTasks.forEach(task => {
+      let indexer = indexers.find(indexer => indexer.design_document === task.design_document);
+      if (!indexer) {
+        indexer = {
+          design_document: task.design_document,
+          tasks: {},
+        };
+        indexers.push(indexer);
+      }
+      indexer.tasks[`${task.node}-${task.pid}`] = task.progress;
+    });
   };
 
   const probeViews = viewlist => {
@@ -138,6 +172,7 @@ const warmViews = (deployDoc) => {
     )
       .then(() => {
         info('Warming views complete');
+        return updateIndexers();
       })
       .catch(err => {
         if (err.code !== 'ESOCKETTIMEDOUT') {

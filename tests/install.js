@@ -124,6 +124,7 @@ describe('Installation flow', () => {
   describe('Warming views', () => {
     it('Finds all staged ddocs and queries a view from each, writing progress to the deployDoc', () => {
       const relevantIndexer = {
+        "node": "couchdb@localhost",
         "changes_done": 5454,
         "database": "shards/80000000-ffffffff/medic.1525076838",
         "design_document": "_design/:staged:medic",
@@ -135,6 +136,7 @@ describe('Installation flow', () => {
         "updated_on": 1376116651
       };
       const irrelevantIndexer = {
+        "node": "couchdb@localhost",
         "changes_done": 5454,
         "database": "shards/80000000-ffffffff/medic.1525076838",
         "design_document": "_design/medic",
@@ -181,12 +183,210 @@ describe('Installation flow', () => {
         DB.app.query.args[1][0].should.equal(':staged:some-more-views/yet_another_view');
 
         // First to init the warm log, second after querying for indexes
-        DB.app.put.callCount.should.equal(2);
+        // third after all views are warmed
+        DB.app.put.callCount.should.equal(3);
         DB.app.put.args[1][0].log.length.should.equal(1);
         DB.app.put.args[1][0].log[0].should.deep.equal({
           type: 'warm_log',
-          indexers: [relevantIndexer]
+          indexers: [{
+            design_document: '_design/:staged:medic',
+            progress: 100,
+            tasks: {
+              'couchdb@localhost-<0.6838.4>': 100
+            }
+          }]
         });
+        DB.activeTasks.callCount.should.equal(1);
+      });
+    });
+
+    it('Groups active tasks by ddoc and calculates an overall progress', () => {
+      const indexers = [
+        [
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 3, pid: 's-d1-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc1', progress: 4, pid: 's-d1-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc1', progress: 2, pid: 's-d1-3', type: 'indexer'},
+
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc2', progress: 7, pid: 's-d2-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc2', progress: 10, pid: 's-d2-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc2', progress: 5, pid: 's-d2-3', type: 'indexer'},
+
+          {database: 's1', node: 'n1', design_document: 'ddoc1', progress: 77, pid: 'd1-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: 'ddoc1', progress: 99, pid: 'd1-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: 'ddoc1', progress: 52, pid: 'd1-3', type: 'indexer'},
+        ],
+        [
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 22, pid: 's-d1-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc1', progress: 29, pid: 's-d1-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc1', progress: 18, pid: 's-d1-3', type: 'indexer'},
+
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc2', progress: 36, pid: 's-d2-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc2', progress: 41, pid: 's-d2-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc2', progress: 55, pid: 's-d2-3', type: 'indexer'},
+
+          {database: 's1', node: 'n1', design_document: 'ddoc1', progress: 87, pid: 'd1-1', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: 'ddoc1', progress: 95, pid: 'd1-3', type: 'indexer'},
+        ],
+        [
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 49, pid: 's-d1-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc1', progress: 65, pid: 's-d1-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc1', progress: 38, pid: 's-d1-3', type: 'indexer'},
+
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc2', progress: 65, pid: 's-d2-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc2', progress: 72, pid: 's-d2-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc2', progress: 81, pid: 's-d2-3', type: 'indexer'},
+        ],
+        [
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 72, pid: 's-d1-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc1', progress: 92, pid: 's-d1-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc1', progress: 75, pid: 's-d1-3', type: 'indexer'},
+
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc2', progress: 93, pid: 's-d2-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc2', progress: 97, pid: 's-d2-2', type: 'indexer'},
+        ],
+        [
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 92, pid: 's-d1-1', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc1', progress: 94, pid: 's-d1-3', type: 'indexer'},
+        ]
+      ];
+      const deployDocs = [];
+
+      DB.app.allDocs.resolves({ rows: [
+          { doc: {
+              _id: ':staged:some-views',
+              views: {
+                a_view: 'the map etc'
+              }
+            }}
+        ]});
+
+      DB.app.query.rejects({ code: 'ESOCKETTIMEDOUT' });
+      DB.app.query.onCall(4).resolves();
+      indexers.forEach((indexer, key) => {
+        DB.activeTasks.onCall(key).resolves(indexer);
+      });
+      deployDoc.log = [];
+      sinon.stub(utils, 'update').callsFake(doc => {
+        deployDocs.push(JSON.parse(JSON.stringify(doc)));
+        return Promise.resolve();
+      });
+
+      return install._warmViews(deployDoc).then(() => {
+        DB.activeTasks.callCount.should.equal(5);
+        DB.app.query.callCount.should.equal(5);
+        utils.update.callCount.should.equal(7);
+
+        deployDoc.log.length.should.equal(1);
+        deployDoc.log[0].indexers.should.deep.equal([
+          {
+            design_document: ':staged:ddoc1',
+            progress: 100,
+            tasks: { 'n1-s-d1-1': 100, 'n1-s-d1-2': 100, 'n1-s-d1-3': 100 }
+          },
+          {
+            design_document: ':staged:ddoc2',
+            progress: 100,
+            tasks: { 'n1-s-d2-1': 100, 'n1-s-d2-2': 100, 'n1-s-d2-3': 100 }
+          }
+        ]);
+
+        deployDocs[0].log.should.deep.equal([{ type: 'warm_log' }]);
+        deployDocs[1].log.should.deep.equal([{
+          type: 'warm_log',
+          indexers: [
+            {
+              design_document: ':staged:ddoc1',
+              progress: 3,
+              tasks: { 'n1-s-d1-1': 3, 'n1-s-d1-2': 4, 'n1-s-d1-3': 2 }
+            },
+            {
+              design_document: ':staged:ddoc2',
+              progress: 7,
+              tasks: { 'n1-s-d2-1': 7, 'n1-s-d2-2': 10, 'n1-s-d2-3': 5 }
+            }
+          ]
+        }]);
+
+        deployDocs[2].log.should.deep.equal([{
+          type: 'warm_log',
+          indexers: [
+            {
+              design_document: ':staged:ddoc1',
+              progress: 23,
+              tasks: { 'n1-s-d1-1': 22, 'n1-s-d1-2': 29, 'n1-s-d1-3': 18 }
+            },
+            {
+              design_document: ':staged:ddoc2',
+              progress: 44,
+              tasks: { 'n1-s-d2-1': 36, 'n1-s-d2-2': 41, 'n1-s-d2-3': 55 }
+            }
+          ]
+        }]);
+
+        deployDocs[3].log.should.deep.equal([{
+          type: 'warm_log',
+          indexers: [
+            {
+              design_document: ':staged:ddoc1',
+              progress: 51,
+              tasks: { 'n1-s-d1-1': 49, 'n1-s-d1-2': 65, 'n1-s-d1-3': 38 }
+            },
+            {
+              design_document: ':staged:ddoc2',
+              progress: 73,
+              tasks: { 'n1-s-d2-1': 65, 'n1-s-d2-2': 72, 'n1-s-d2-3': 81 }
+            }
+          ]
+        }]);
+
+        deployDocs[4].log.should.deep.equal([{
+          type: 'warm_log',
+          indexers: [
+            {
+              design_document: ':staged:ddoc1',
+              progress: 80,
+              tasks: { 'n1-s-d1-1': 72, 'n1-s-d1-2': 92, 'n1-s-d1-3': 75 }
+            },
+            {
+              design_document: ':staged:ddoc2',
+              progress: 97,
+              tasks: { 'n1-s-d2-1': 93, 'n1-s-d2-2': 97, 'n1-s-d2-3': 100 }
+            }
+          ]
+        }]);
+
+        deployDocs[5].log.should.deep.equal([{
+          type: 'warm_log',
+          indexers: [
+            {
+              design_document: ':staged:ddoc1',
+              progress: 95,
+              tasks: { 'n1-s-d1-1': 92, 'n1-s-d1-2': 100, 'n1-s-d1-3': 94 }
+            },
+            {
+              design_document: ':staged:ddoc2',
+              progress: 100,
+              tasks: { 'n1-s-d2-1': 100, 'n1-s-d2-2': 100, 'n1-s-d2-3': 100 }
+            }
+          ]
+        }]);
+
+        deployDocs[6].log.should.deep.equal([{
+          type: 'warm_log',
+          indexers: [
+            {
+              design_document: ':staged:ddoc1',
+              progress: 100,
+              tasks: { 'n1-s-d1-1': 100, 'n1-s-d1-2': 100, 'n1-s-d1-3': 100 }
+            },
+            {
+              design_document: ':staged:ddoc2',
+              progress: 100,
+              tasks: { 'n1-s-d2-1': 100, 'n1-s-d2-2': 100, 'n1-s-d2-3': 100 }
+            }
+          ]
+        }]);
+
       });
     });
   });
