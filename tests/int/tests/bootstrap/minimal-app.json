@@ -1,0 +1,11 @@
+{
+  "_id": "test:test-app-1:1.0.0",
+  "build_info": {
+    "schema_version": 1,
+    "namespace": "test",
+    "application": "test-app-1",
+    "version": "1.0.0",
+    "base_version": "1.0.0",
+    "node_modules": []
+  }
+}

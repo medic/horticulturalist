@@ -12,7 +12,8 @@
   },
   "scripts": {
     "start": "node src/index.js --dev",
-    "test": "jshint src/ tests/ && TESTING=1 mocha ./tests/unit/**.js"
+    "test": "jshint src/ tests/ && TESTING=1 mocha ./tests/unit/**.js",
+    "int-tests": "mocha ./tests/int/tests/**.js"
   },
   "dependencies": {
     "debug": "^3.1.0",
@@ -28,11 +29,11 @@
     "signal-exit": "^3.0.2"
   },
   "devDependencies": {
-    "chai-as-promised": "^7.1.1",
     "chai": "^4.1.2",
+    "chai-as-promised": "^7.1.1",
     "jshint": "^2.9.4",
+    "medic-builds-repo": "^0.2.0",
     "mocha": "^5.0.0",
-    "sinon": "4.0.1",
-    "medic-builds-repo": "0.0.1"
+    "sinon": "4.0.1"
   }
 }
