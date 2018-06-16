@@ -1,7 +1,8 @@
 const { info, debug, stage: stageLog } = require('../log'),
-      DB = require('../dbs');
-
-const utils = require('../utils');
+      DB = require('../dbs'),
+      fs = require('fs-extra'),
+   utils = require('../utils'),
+   ddocWrapper = require('./ddocWrapper');
 
 const stager = deployDoc => (key, message) => {
   stageLog(message);
@@ -181,6 +182,23 @@ const clearStagedDdocs = () => {
   });
 };
 
+const removeOldVersion = ddoc => {
+  return Promise.all(ddoc.getChangedApps().map(app => {
+    const oldPath = app.deployPath('old');
+
+    if(fs.existsSync(oldPath)) {
+      const linkString = fs.readlinkSync(oldPath);
+
+      if(fs.existsSync(linkString)) {
+        debug(`Deleting old ${app.name} from ${linkString}…`);
+        fs.removeSync(linkString);
+      } else debug(`Old app not found at ${linkString}.`);
+
+      fs.unlinkSync(oldPath);
+    }
+  }));
+};
+
 const preCleanup = () => {
   return clearStagedDdocs()
     .then(() => {
@@ -191,10 +209,11 @@ const preCleanup = () => {
     });
 };
 
-const postCleanup = (deploy, changedApps, deployDoc) => {
+const postCleanup = (ddocWrapper, deployDoc) => {
   return Promise.all([
-    deploy.removeOldVersion(changedApps),
-    clearStagedDdocs()
+        removeOldVersion(ddocWrapper),
+        clearStagedDdocs()
+      ])
       .then(() => {
         debug('Delete deploy ddoc');
         deployDoc._deleted = true;
@@ -203,14 +222,12 @@ const postCleanup = (deploy, changedApps, deployDoc) => {
       .then(() => {
         debug('Cleanup old views');
         return DB.app.viewCleanup();
-      })]);
+      });
 };
 
-const performDeploy = (apps, mode, deployDoc, ddoc, firstRun) => {
-  const deploy = require('./deploySteps')(apps, mode, deployDoc);
-  return deploy.run(ddoc, firstRun).then((changedApps) => {
-    return {deploy, changedApps};
-  });
+const performDeploy = (mode, deployDoc, ddoc, firstRun) => {
+  const deploy = require('./deploySteps')(mode, deployDoc);
+  return deploy.run(ddoc, firstRun);
 };
 
 const predeploySteps = (deployDoc) => {
@@ -232,7 +249,7 @@ const predeploySteps = (deployDoc) => {
     .then(() => ddoc);
 };
 
-const deploySteps = (apps, mode, deployDoc, firstRun, ddoc) => {
+const deploySteps = (mode, deployDoc, firstRun, ddoc) => {
   const getApplicationDdoc = () => {
     // If we got here through the 'install' action type we'll already have this
     // loaded into memory. Otherwise (ie a 'stage' then 'complete') we need to
@@ -254,10 +271,10 @@ const deploySteps = (apps, mode, deployDoc, firstRun, ddoc) => {
     .then(getApplicationDdoc)
     .then(ddoc => {
       return stage('horti.stage.deploying', 'Deploying new installation')
-        .then(() => performDeploy(apps, mode, deployDoc, ddoc, firstRun))
-        .then(({deploy, changedApps}) => {
+        .then(() => performDeploy(mode, deployDoc, ddoc, firstRun))
+        .then(() => {
           stage('horti.stage.postCleanup', 'Post-deploy cleanup, installation complete');
-          return postCleanup(deploy, changedApps, deployDoc);
+          return postCleanup(ddocWrapper(ddoc, mode), deployDoc);
         });
     });
 };
@@ -265,18 +282,11 @@ const deploySteps = (apps, mode, deployDoc, firstRun, ddoc) => {
 
 
 module.exports = {
-  // TODO: when all is said and done
-  //       do we still need apps, and first run?
-  //       (cause you can intuit them?)
-  //  (
-  //    you know what apps exist because they are in the application ddoc list
-  //    you know if its first run because the apps are either running or they're not
-  //  )
-  install: (deployDoc, mode, apps, firstRun) => {
+  install: (deployDoc, mode, firstRun) => {
     info(`Deploying new build: ${keyFromDeployDoc(deployDoc)}`);
 
     return predeploySteps(deployDoc)
-      .then((ddoc) => deploySteps(apps, mode, deployDoc, firstRun, ddoc));
+      .then((ddoc) => deploySteps(mode, deployDoc, firstRun, ddoc));
   },
   stage: (deployDoc) => {
     info(`Staging new build: ${keyFromDeployDoc(deployDoc)}`);
@@ -288,10 +298,10 @@ module.exports = {
         return utils.update(deployDoc);
       });
   },
-  complete: (deployDoc, mode, apps, firstRun) => {
+  complete: (deployDoc, mode, firstRun) => {
     info(`Deploying staged build: ${keyFromDeployDoc(deployDoc)}`);
 
-    return deploySteps(apps, mode, deployDoc, firstRun);
+    return deploySteps(mode, deployDoc, firstRun);
   },
   _preCleanup: preCleanup,
   _downloadBuild: downloadBuild,

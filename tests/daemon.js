@@ -38,7 +38,6 @@ describe('Daemon', () => {
       });
 
       const mode = 'mode';
-      const apps = 'apps';
       const firstRun = 'firstRun';
       const deployResult = Promise.resolve();
 
@@ -50,25 +49,25 @@ describe('Daemon', () => {
         install.install.returns(deployResult);
 
         const deployDoc = {};
-        daemon._performDeployment(deployDoc, mode, apps, firstRun)
+        daemon._performDeployment(deployDoc, mode, firstRun)
           .should.equal(deployResult);
 
-        install.install.args[0].should.deep.equal([deployDoc, mode, apps, firstRun]);
+        install.install.args[0].should.deep.equal([deployDoc, mode, firstRun]);
       });
       it('installs with the install action', () => {
         install.install.returns(deployResult);
 
         const deployDoc = {action: 'install'};
-        daemon._performDeployment(deployDoc, mode, apps, firstRun)
+        daemon._performDeployment(deployDoc, mode, firstRun)
           .should.equal(deployResult);
 
-        install.install.args[0].should.deep.equal([deployDoc, mode, apps, firstRun]);
+        install.install.args[0].should.deep.equal([deployDoc, mode, firstRun]);
       });
       it('stages with the stage action', () => {
         install.stage.returns(deployResult);
 
         const deployDoc = {action: 'stage'};
-        daemon._performDeployment(deployDoc, mode, apps, firstRun)
+        daemon._performDeployment(deployDoc, mode, firstRun)
           .should.equal(deployResult);
 
         install.stage.args[0].should.deep.equal([deployDoc]);
@@ -77,10 +76,10 @@ describe('Daemon', () => {
         install.complete.returns(deployResult);
 
         const deployDoc = {action: 'complete'};
-        daemon._performDeployment(deployDoc, mode, apps, firstRun)
+        daemon._performDeployment(deployDoc, mode, firstRun)
           .should.equal(deployResult);
 
-        install.complete.args[0].should.deep.equal([deployDoc, mode, apps, firstRun]);
+        install.complete.args[0].should.deep.equal([deployDoc, mode, firstRun]);
       });
     });
   });

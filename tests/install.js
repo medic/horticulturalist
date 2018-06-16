@@ -4,7 +4,8 @@ const sinon = require('sinon').sandbox.create();
 const DB = require('../src/dbs');
 const install = require('../src/install'),
       deploySteps = require('../src/install/deploySteps'),
-      utils = require('../src/utils');
+      utils = require('../src/utils'),
+      ddocWrapper = require('../src/install/ddocWrapper');
 
 describe('Installation flow', () => {
   const deployDoc = {
@@ -193,7 +194,7 @@ describe('Installation flow', () => {
 
   describe('Deploy steps', () => {
     describe('Deploy staged ddocs', () => {
-      const steps = deploySteps(null, null, deployDoc);
+      const steps = deploySteps(null, deployDoc);
 
       const primaryDdoc = {_id: '_design/:staged:medic', _rev: '1-medic', staged: true};
       const secondaryDdocs = [
@@ -293,16 +294,16 @@ describe('Installation flow', () => {
   });
 
   describe('Post cleanup', () => {
-    const steps = deploySteps(null, null, deployDoc);
+    const ddoc = ddocWrapper(null, {});
 
     it('deletes docs used in deploy', () => {
       DB.app.put.resolves();
       DB.app.allDocs.resolves({rows: [{id: 'foo', value: {rev: '1-bar'}}]});
       DB.app.bulkDocs.resolves([]);
       DB.app.viewCleanup.resolves();
-      sinon.stub(steps, 'removeOldVersion').resolves();
+      sinon.stub(ddoc, 'getChangedApps').returns([]);
 
-      return install._postCleanup(steps, [], deployDoc)
+      return install._postCleanup(ddoc, deployDoc)
         .then(() => {
           DB.app.put.callCount.should.equal(1);
           DB.app.put.args[0][0]._id.should.equal('horti-upgrade');
@@ -315,7 +316,7 @@ describe('Installation flow', () => {
             _deleted: true
           }]);
           DB.app.viewCleanup.callCount.should.equal(1);
-          steps.removeOldVersion.callCount.should.equal(1);
+          ddoc.getChangedApps.callCount.should.equal(1);
         });
     });
   });
