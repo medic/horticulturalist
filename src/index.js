@@ -2,8 +2,7 @@
 const fs = require('fs-extra'),
       os = require('os'),
       parseArgs = require('minimist'),
-      onExit = require('signal-exit'),
-      apps = require('./apps');
+      onExit = require('signal-exit');
 
 const { error, info } = require('./log');
 
@@ -13,7 +12,8 @@ const daemon = require('./daemon'),
       bootstrap = require('./bootstrap'),
       fatality = require('./fatality'),
       help = require('./help'),
-      lockfile = require('./lockfile');
+      lockfile = require('./lockfile'),
+      apps = require('./apps');
 
 const MODES = {
   development: {

@@ -1,8 +1,8 @@
 const { info, debug, stage: stageLog } = require('../log'),
       DB = require('../dbs'),
       fs = require('fs-extra'),
-   utils = require('../utils'),
-   ddocWrapper = require('./ddocWrapper');
+      utils = require('../utils'),
+      ddocWrapper = require('./ddocWrapper');
 
 const stager = deployDoc => (key, message) => {
   stageLog(message);
@@ -273,8 +273,10 @@ const deploySteps = (mode, deployDoc, firstRun, ddoc) => {
       return stage('horti.stage.deploying', 'Deploying new installation')
         .then(() => performDeploy(mode, deployDoc, ddoc, firstRun))
         .then(() => {
-          stage('horti.stage.postCleanup', 'Post-deploy cleanup, installation complete');
-          return postCleanup(ddocWrapper(ddoc, mode), deployDoc);
+          return stage('horti.stage.postCleanup', 'Post-deploy cleanup, installation complete')
+            .then(() => {
+              return postCleanup(ddocWrapper(ddoc, mode), deployDoc);
+            });
         });
     });
 };
@@ -282,6 +284,11 @@ const deploySteps = (mode, deployDoc, firstRun, ddoc) => {
 
 
 module.exports = {
+  // TODO: when all is said and done do we still need first run?
+  //       (cause you can intuit?)
+  //  (
+  //    you know if its first run because the apps are either running or they're not
+  //  )
   install: (deployDoc, mode, firstRun) => {
     info(`Deploying new build: ${keyFromDeployDoc(deployDoc)}`);
 

@@ -120,7 +120,8 @@ module.exports = (mode, deployDoc) => {
   };
 
   const processDdoc = (ddoc, firstRun) => {
-    const changedApps = ddoc.getChangedApps();
+    const wrappedDdoc = ddocWrapper(ddoc);
+    const changedApps = wrappedDdoc.getChangedApps();
     const appsToDeploy = changedApps.length;
 
     return Promise.resolve()
@@ -128,7 +129,7 @@ module.exports = (mode, deployDoc) => {
         if (appsToDeploy) {
           return Promise.resolve()
             .then(() => info(`Unzipping changed apps to ${mode.deployments}…`, changedApps))
-            .then(() => ddoc.unzipChangedApps(changedApps))
+            .then(() => wrappedDdoc.unzipChangedApps(changedApps))
             .then(() => info('Changed apps unzipped.'))
             .then(() => {
               if (mode.daemon) {
@@ -165,7 +166,7 @@ module.exports = (mode, deployDoc) => {
 
   const moduleWithContext = {
     run: (ddoc, firstRun) => {
-      return processDdoc(ddocWrapper(ddoc), firstRun);
+      return processDdoc(ddoc, firstRun);
     },
     _deployStagedDdocs: deployStagedDdocs,
     _loadStagedDdocs: loadStagedDdocs,
