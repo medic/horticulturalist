@@ -271,13 +271,9 @@ const deploySteps = (mode, deployDoc, firstRun, ddoc) => {
     .then(getApplicationDdoc)
     .then(ddoc => {
       return stage('horti.stage.deploying', 'Deploying new installation')
-        .then(() => performDeploy(mode, deployDoc, ddoc, firstRun))
-        .then(() => {
-          return stage('horti.stage.postCleanup', 'Post-deploy cleanup, installation complete')
-            .then(() => {
-              return postCleanup(ddocWrapper(ddoc, mode), deployDoc);
-            });
-        });
+        .then(performDeploy(mode, deployDoc, ddoc, firstRun))
+        .then(stage('horti.stage.postCleanup', 'Post-deploy cleanup, installation complete'))
+        .then(postCleanup(ddocWrapper(ddoc, mode), deployDoc));
     });
 };
 
