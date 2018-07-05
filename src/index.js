@@ -8,12 +8,12 @@ const { error, info } = require('./log');
 
 const { ACTIONS } = require('./constants');
 
-const appUtils = require('./apps'),
-      daemon = require('./daemon'),
+const daemon = require('./daemon'),
       bootstrap = require('./bootstrap'),
       fatality = require('./fatality'),
       help = require('./help'),
-      lockfile = require('./lockfile');
+      lockfile = require('./lockfile'),
+      apps = require('./apps');
 
 const MODES = {
   development: {
@@ -59,7 +59,6 @@ const mode = argv.dev         ? MODES.development :
              argv.local       ? MODES.local :
              argv['medic-os'] ? MODES.medic_os :
              undefined;
-const apps = appUtils(mode.start, mode.stop);
 
 if (argv.version || argv.v) {
   help.outputVersion();
@@ -104,7 +103,7 @@ process.on('uncaughtException', fatality);
 // clearing of the lockfile is handled by the lockfile library itself
 onExit((code) => {
   if (mode.manageAppLifecycle && mode.daemon) {
-    apps.stopSync();
+    apps.stopSync(mode.stop);
   }
 
   process.exit(code || 0);
@@ -126,6 +125,6 @@ lockfile.wait()
       return bootstrap.existing();
     }
   }).then(deployDoc => {
-      return daemon.init(deployDoc, mode, apps);
+      return daemon.init(deployDoc, mode);
   })
   .catch(fatality);

@@ -1,4 +1,5 @@
-const { info } = require('./log');
+const { info } = require('./log'),
+      apps = require('./apps');
 
 const {
   LEGACY_0_8_UPGRADE_DOC,
@@ -16,21 +17,21 @@ const newDeployment = deployDoc =>
   deployDoc._id === HORTI_UPGRADE_DOC &&
   (deployDoc.action !== ACTIONS.STAGE || !deployDoc.staging_complete);
 
-const performDeployment = (deployDoc, mode, apps, firstRun=false) => {
+const performDeployment = (deployDoc, mode, firstRun=false) => {
   let deployAction;
 
   if (!deployDoc.action || deployDoc.action === ACTIONS.INSTALL) {
-    deployAction = install.install(deployDoc, mode, apps, firstRun);
+    deployAction = install.install(deployDoc, mode, firstRun);
   } else if (deployDoc.action === ACTIONS.STAGE) {
     deployAction = install.stage(deployDoc);
   } else if (deployDoc.action === ACTIONS.COMPLETE) {
-    deployAction = install.complete(deployDoc, mode, apps, firstRun);
+    deployAction = install.complete(deployDoc, mode, firstRun);
   }
 
   return deployAction;
 };
 
-const watchForDeployments = (mode, apps) => {
+const watchForDeployments = (mode) => {
   info('Watching for deployments');
 
   const watch = DB.app.changes({
@@ -58,8 +59,8 @@ const watchForDeployments = (mode, apps) => {
       // accidentally having no schema version by the builds server's
       // validate_doc_update function
       if (!deployDoc.schema_version || deployDoc.schema_version === 1) {
-        return module.exports._performDeployment(deployDoc, mode, apps)
-          .then(() => module.exports._watchForDeployments(mode, apps))
+        return module.exports._performDeployment(deployDoc, mode)
+          .then(() => module.exports._watchForDeployments(mode))
           .catch(fatality);
       } else {
         return fatality(new Error('Cannot handle deploy doc schema_version ' + deployDoc.schema_version));
@@ -90,19 +91,19 @@ const watchForDeployments = (mode, apps) => {
 };
 
 module.exports = {
-  init: (deployDoc, mode, apps) => {
+  init: (deployDoc, mode) => {
     let bootActions = Promise.resolve();
 
     if (mode.manageAppLifecycle && mode.daemon) {
-      bootActions = bootActions.then(() => apps.start());
+      bootActions = bootActions.then(() => apps.start(mode.start));
     }
 
     if (module.exports._newDeployment(deployDoc)) {
-      bootActions = bootActions.then(() => module.exports._performDeployment(deployDoc, mode, apps, true));
+      bootActions = bootActions.then(() => module.exports._performDeployment(deployDoc, mode, true));
     }
 
     if (mode.daemon) {
-      bootActions = bootActions.then(() => module.exports._watchForDeployments(mode, apps));
+      bootActions = bootActions.then(() => module.exports._watchForDeployments(mode));
     }
 
     return bootActions;
