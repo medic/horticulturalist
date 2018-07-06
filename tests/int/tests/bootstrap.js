@@ -6,7 +6,8 @@ const dbUtils = require('../utils/db'),
 describe('Bootstrapping', () => {
   before(() =>
     dbUtils.initBuildsDB()
-      .then(() => dbUtils.uploadBuild(require('./bootstrap/minimal-app.json'))));
+      .then(() => dbUtils.uploadBuild(require('./bootstrap/minimal-app-1.0.0.json')))
+      .then(() => dbUtils.uploadBuild(require('./bootstrap/minimal-app-1.1.0.json'))));
 
   beforeEach(() => dbUtils.initAppsDB());
 
@@ -33,7 +34,7 @@ describe('Bootstrapping', () => {
       .then(() => dbUtils.appDb().get('_design/test-app-1'))
       .then(ddoc => {
         assert.equal(ddoc.deploy_info.user, 'horticulturalist cli');
-        assert.equal(ddoc.deploy_info.version, '1.0.0');
+        assert.equal(ddoc.deploy_info.version, '1.1.0');
       });
   });
 });
