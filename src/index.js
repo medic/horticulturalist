@@ -101,6 +101,10 @@ if(lockfile.exists()) {
 }
 
 process.on('uncaughtException', fatality);
+process.on('unhandledRejection', (err) => {
+  console.error(err);
+  fatality('Unhandled rejection, please raise this as a bug!');
+});
 
 // clearing of the lockfile is handled by the lockfile library itself
 onExit((code) => {
