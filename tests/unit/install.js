@@ -1,11 +1,11 @@
 require('chai').should();
 
 const sinon = require('sinon').sandbox.create();
-const DB = require('../src/dbs');
-const install = require('../src/install'),
-      deploySteps = require('../src/install/deploySteps'),
-      utils = require('../src/utils'),
-      ddocWrapper = require('../src/install/ddocWrapper');
+const DB = require('../../src/dbs');
+const install = require('../../src/install'),
+      deploySteps = require('../../src/install/deploySteps'),
+      utils = require('../../src/utils'),
+      ddocWrapper = require('../../src/install/ddocWrapper');
 
 describe('Installation flow', () => {
   const deployDoc = {
