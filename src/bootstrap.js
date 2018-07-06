@@ -1,5 +1,6 @@
 const DB = require('./dbs'),
-      utils = require('./utils');
+      utils = require('./utils'),
+      versionUtils = require('./versionUtils');
 const { info, debug } = require('./log');
 
 const {
@@ -17,38 +18,41 @@ const getUpgradeDoc = () => {
 };
 
 const buildInfo = (version) => {
-  if (version.startsWith('@')) {
+  if (version.isChannel) {
     debug('Version is a channel, finding out the latest version');
-    version = version.substring(1);
     return DB.builds.query('builds/releases', {
-      startkey: [version, 'medic', 'medic', {}],
-      endkey: [version, 'medic', 'medic'],
+      startkey: [version.version, version.namespace, version.application, {}],
+      endkey: [version.version, version.namespace, version.application],
       descending: true,
       limit: 1
     }).then(results => {
       if (results.rows.length === 0) {
-        throw new Error(`There are currently no builds for the '${version}' channel`);
+        throw new Error(`There are currently no builds for the '${versionUtils.display(version)}' channel`);
       } else {
         debug(`Found ${results.rows[0].id}`);
-        const [namespace, application, version] = results.rows[0].id.split(':');
+        const version = versionUtils.parse(results.rows[0].id);
         return {
-          namespace: namespace,
-          application: application,
-          version: version
+          namespace: version.namespace,
+          application: version.application,
+          version: version.version
         };
       }
     });
   } else {
     return Promise.resolve({
-      namespace: 'medic',
-      application: 'medic',
-      version: version
+      namespace: version.namespace,
+      application: version.application,
+      version: version.version
     });
   }
 };
 
 const initDeploy = (action, version) => {
-  info(`Doing ${action} to ${version}`);
+  if (!versionUtils.valid(version)) {
+    throw Error(`Invalid version structure: ${JSON.stringify(version)}`);
+  }
+
+  info(`Doing ${action} to ${versionUtils.display(version)}`);
   return getUpgradeDoc()
     .then(existingDeployDoc => {
       return buildInfo(version)

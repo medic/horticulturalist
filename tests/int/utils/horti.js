@@ -1,6 +1,6 @@
 const spawn = require('child_process').spawn;
 
-const { APP_URL, API_PORT } = require('./constants');
+const { APP_URL, API_PORT, BUILDS_URL } = require('./constants');
 
 module.exports = {
 /**
@@ -12,17 +12,24 @@ module.exports = {
   *  - 'string' || /regex/: once this is seen in the logs or the process exits
   *    with code 0
   */
-  start: (args, waitUntil) => {
+  start: (args, waitUntil, log) => {
     return new Promise((resolve, reject) => {
+      console.log('Starting horti with', JSON.stringify(args, null, 2));
       const child = spawn('node', ['src/index.js'].concat(args), {
         // cwd: serviceName,
         env: {
           API_PORT: API_PORT,
           COUCH_URL: APP_URL,
           COUCH_NODE_NAME: process.env.COUCH_NODE_NAME,
-          PATH: process.env.PATH
+          PATH: process.env.PATH,
+          HORTI_BUILDS_SERVER: BUILDS_URL
         }
       });
+
+      if (log) {
+        child.stdout.on('data', data => process.stdout.write(data.toString()));
+        child.stderr.on('data', data => process.stdout.write(data.toString()));
+      }
 
       if (waitUntil === false) {
         return resolve(child);
@@ -30,11 +37,14 @@ module.exports = {
 
       if (waitUntil !== true) {
         child.stdout.on('data', data => {
-          if (data.toString().match(waitUntil)) {
+          const sdata = data.toString();
+
+          if (sdata.match(waitUntil)) {
             resolve(child);
           }
         });
       }
+
 
       child.on('exit', code => {
         if (code === 0) {

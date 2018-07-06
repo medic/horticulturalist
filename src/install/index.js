@@ -85,6 +85,11 @@ const writeDdocsInSeries = compiledDocs => {
 };
 
 const extractDdocs = ddoc => {
+  if (!ddoc._attachments || !ddoc._attachments['ddocs/compiled.json']) {
+    debug('No extra ddocs to extract');
+    return;
+  }
+
   const compiledDocs =
     JSON.parse(ddoc._attachments['ddocs/compiled.json'].data).docs;
 

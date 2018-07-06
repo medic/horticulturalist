@@ -7,7 +7,9 @@ const builds = require('medic-builds-repo');
 const { BUILDS_URL, APP_URL } = require('./constants');
 
 module.exports = {
-  initBuildsDB: () => builds.init(BUILDS_URL, {wipe: true}),
+  initBuildsDB: () => {
+    return builds.init(BUILDS_URL, { wipe: true });
+  },
   initAppsDB: () => {
     const DB = new PouchDB(APP_URL);
     return DB.destroy()
@@ -17,5 +19,6 @@ module.exports = {
     const DB = new PouchDB(BUILDS_URL);
 
     return DB.put(build);
-  }
+  },
+  appDb: () => new PouchDB(APP_URL)
 };
