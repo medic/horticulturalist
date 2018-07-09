@@ -21,8 +21,7 @@ describe('Bootstrapping', () => {
       .then(ddoc => {
         assert.equal(ddoc.deploy_info.user, 'horticulturalist cli');
         assert.equal(ddoc.deploy_info.version, '1.0.0');
-      })
-      .catch(err => assert.fail(err));
+      });
   });
 
   it('Bootstraps and installs a minimal application based off a channel', () => {
