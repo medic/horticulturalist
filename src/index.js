@@ -14,7 +14,7 @@ const daemon = require('./daemon'),
       help = require('./help'),
       lockfile = require('./lockfile'),
       apps = require('./apps'),
-      versionUtils = require('./versionUtils');
+      packageUtils = require('./package');
 
 const MODES = {
   development: {
@@ -86,7 +86,7 @@ let version = argv.install || argv.stage;
 if (version === true) {
   version = 'medic:medic:master';
 }
-version = versionUtils.parse(version);
+version = packageUtils.parse(version);
 
 mode.daemon = argv.daemon;
 

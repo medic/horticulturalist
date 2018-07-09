@@ -6,7 +6,7 @@ const should = chai.should();
 
 const sinon = require('sinon').sandbox.create();
 const DB = require('../../src/dbs');
-const versionUtils = require('../../src/versionUtils');
+const packageUtils = require('../../src/package');
 const bootstrap = require('../../src/bootstrap');
 
 describe('Bootstrap', () => {
@@ -20,7 +20,7 @@ describe('Bootstrap', () => {
   it('creates an upgrade doc with a known version', () => {
     DB.app.get.rejects({status: 404});
     DB.app.put.resolves({rev: '1-some-rev'});
-    return bootstrap.install(versionUtils.parse('test:test:1.0.0'))
+    return bootstrap.install(packageUtils.parse('test:test:1.0.0'))
       .then(deployDoc => {
         DB.app.put.callCount.should.equal(1);
         DB.app.put.args[0][0]._id.should.equal('horti-upgrade');
@@ -38,7 +38,7 @@ describe('Bootstrap', () => {
   it('creates an upgrade doc with a known version set to stage', () => {
     DB.app.get.rejects({status: 404});
     DB.app.put.resolves({rev: '1-some-rev'});
-    return bootstrap.stage(versionUtils.parse('test:test:1.0.0'))
+    return bootstrap.stage(packageUtils.parse('test:test:1.0.0'))
       .then(deployDoc => {
         DB.app.put.callCount.should.equal(1);
         DB.app.put.args[0][0]._id.should.equal('horti-upgrade');
@@ -60,7 +60,7 @@ describe('Bootstrap', () => {
       id: 'test:test:1.0.0'
     }]});
 
-    return bootstrap.install(versionUtils.parse('@test:test:release'))
+    return bootstrap.install(packageUtils.parse('@test:test:release'))
       .then(() => {
         DB.builds.query.callCount.should.equal(1);
         DB.builds.query.args[0][0].should.equal('builds/releases');
@@ -80,7 +80,7 @@ describe('Bootstrap', () => {
     DB.app.get.resolves({_id: 'existing-doc', _rev: 'some-rev', extra: 'data'});
     DB.app.put.resolves({rev: '1-some-rev'});
 
-    return bootstrap.install(versionUtils.parse('test:test:1.0.0'))
+    return bootstrap.install(packageUtils.parse('test:test:1.0.0'))
       .then(() => {
         DB.app.get.callCount.should.equal(1);
         DB.app.put.callCount.should.equal(1);

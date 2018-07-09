@@ -1,10 +1,10 @@
 const assert = require('chai').assert;
 
-const versionUtils = require('../../src/versionUtils');
+const packageUtils = require('../../src/package');
 
 describe('Version utilities', () => {
   it('parses complete versions', () => {
-    assert.deepEqual(versionUtils.parse('ns:app:1.0.0'), {
+    assert.deepEqual(packageUtils.parse('ns:app:1.0.0'), {
       namespace: 'ns',
       application: 'app',
       version: '1.0.0',
@@ -13,7 +13,7 @@ describe('Version utilities', () => {
   });
 
   it('parses complete channels', () => {
-    assert.deepEqual(versionUtils.parse('@ns:app:release'), {
+    assert.deepEqual(packageUtils.parse('@ns:app:release'), {
       namespace: 'ns',
       application: 'app',
       version: 'release',
@@ -22,7 +22,7 @@ describe('Version utilities', () => {
   });
 
   it('should successfully parse a "medic" version', () => {
-    assert.deepEqual(versionUtils.parse('1.0.0'), {
+    assert.deepEqual(packageUtils.parse('1.0.0'), {
       application: 'medic',
       namespace: 'medic',
       version: '1.0.0',
@@ -30,7 +30,7 @@ describe('Version utilities', () => {
     });
   });
   it('should successfully parse a "medic" channel', () => {
-    assert.deepEqual(versionUtils.parse('@release'), {
+    assert.deepEqual(packageUtils.parse('@release'), {
       application: 'medic',
       namespace: 'medic',
       version: 'release',

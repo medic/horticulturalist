@@ -1,6 +1,6 @@
 const DB = require('./dbs'),
       utils = require('./utils'),
-      versionUtils = require('./versionUtils');
+      packageUtils = require('./package');
 const { info, debug } = require('./log');
 
 const {
@@ -17,6 +17,7 @@ const getUpgradeDoc = () => {
     });
 };
 
+
 const buildInfo = (version) => {
   if (version.isChannel) {
     debug('Version is a channel, finding out the latest version');
@@ -27,10 +28,10 @@ const buildInfo = (version) => {
       limit: 1
     }).then(results => {
       if (results.rows.length === 0) {
-        throw new Error(`There are currently no builds for the '${versionUtils.display(version)}' channel`);
+        throw new Error(`There are currently no builds for the '${packageUtils.display(version)}' channel`);
       } else {
         debug(`Found ${results.rows[0].id}`);
-        const version = versionUtils.parse(results.rows[0].id);
+        const version = packageUtils.parse(results.rows[0].id);
         return {
           namespace: version.namespace,
           application: version.application,
@@ -48,11 +49,11 @@ const buildInfo = (version) => {
 };
 
 const initDeploy = (action, version) => {
-  if (!versionUtils.valid(version)) {
+  if (!packageUtils.valid(version)) {
     throw Error(`Invalid version structure: ${JSON.stringify(version)}`);
   }
 
-  info(`Doing ${action} to ${versionUtils.display(version)}`);
+  info(`Doing ${action} to ${packageUtils.display(version)}`);
   return getUpgradeDoc()
     .then(existingDeployDoc => {
       return buildInfo(version)
