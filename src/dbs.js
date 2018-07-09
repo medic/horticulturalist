@@ -5,8 +5,14 @@ const PouchDB = require('pouchdb-core');
 PouchDB.plugin(require('pouchdb-adapter-http'));
 PouchDB.plugin(require('pouchdb-mapreduce'));
 
-const STAGING_URL = 'https://staging.dev.medicmobile.org/_couch/builds';
+const { info } = require('./log');
 
+const DEFAULT_BUILDS_URL = 'https://staging.dev.medicmobile.org/_couch/builds';
+const BUILDS_URL = process.env.HORTI_BUILDS_SERVER || DEFAULT_BUILDS_URL;
+
+if (BUILDS_URL !== DEFAULT_BUILDS_URL) {
+  info('Using non-default build server: ', BUILDS_URL);
+}
 
 if (process.env.TESTING) {
   module.exports = {
@@ -35,7 +41,7 @@ if (process.env.TESTING) {
 
   module.exports = {
     app: new PouchDB(DEPLOY_URL/*, {ajax: {timeout: 60000}}*/),
-    builds: new PouchDB(STAGING_URL),
+    builds: new PouchDB(BUILDS_URL),
     activeTasks: activeTasks
   };
 }

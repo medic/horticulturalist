@@ -13,7 +13,8 @@ const daemon = require('./daemon'),
       fatality = require('./fatality'),
       help = require('./help'),
       lockfile = require('./lockfile'),
-      apps = require('./apps');
+      apps = require('./apps'),
+      packageUtils = require('./package');
 
 const MODES = {
   development: {
@@ -52,7 +53,7 @@ const argv = parseArgs(process.argv, {
 if (active(argv.dev, argv.local, argv['medic-os']).length !== 1) {
   help.outputHelp();
   error('You must pick one mode to run in.');
-  return;
+  process.exit(-1);
 }
 
 const mode = argv.dev         ? MODES.development :
@@ -73,7 +74,7 @@ if (!mode || argv.help || argv.h) {
 if (active(argv.install, argv.stage, argv['complete-install']).length > 1) {
   help.outputHelp();
   error('Pick only one action to perform');
-  return;
+  process.exit(-1);
 }
 
 const action = argv.install             ? ACTIONS.INSTALL :
@@ -83,15 +84,16 @@ const action = argv.install             ? ACTIONS.INSTALL :
 
 let version = argv.install || argv.stage;
 if (version === true) {
-  version = 'master';
+  version = 'medic:medic:master';
 }
+version = packageUtils.parse(version);
 
 mode.daemon = argv.daemon;
 
 if (!action && !mode.daemon) {
   help.outputHelp();
   error('--no-daemon does not do anything without also specifiying an action');
-  return;
+  process.exit(-1);
 }
 
 if(lockfile.exists()) {
@@ -99,6 +101,10 @@ if(lockfile.exists()) {
 }
 
 process.on('uncaughtException', fatality);
+process.on('unhandledRejection', (err) => {
+  console.error(err);
+  fatality('Unhandled rejection, please raise this as a bug!');
+});
 
 // clearing of the lockfile is handled by the lockfile library itself
 onExit((code) => {

@@ -33,15 +33,30 @@ Pick one mode to run in:
 
 You can also specify a deployment action to perform:
 
-    --install[=buildname|@type]
+    --install[=build|channel]
         Download the latest master (or specified) build and deploy to the
-        local db at startup. Buildname can either be an exact build name (eg
-        'master'), or @type for the latest of that type (eg @release or @beta).
-    --stage[=buildname|@type]
-        The same as install, but prepares a deploy and does not actually 
-        install and deploy it.
+        local db at startup. Alternatively specify a channel to download the
+        latest release from that channel.
+    --stage[=build|channel]
+        The same as install, but only prepares the deploy while not actually 
+        installing or deploying it.
     --complete-install
         Completes a staged install or errors if one does not exist.
     --no-daemon
         Does not start node modules or watch for new installations, but does 
         perform one of the above actions if specified.
+
+
+# Builds and Channels
+
+A build is an fully qualified name that points to a specific release. A channel specifies a type of release, of which there may be many, and in the context of installations maps to the latest of those releases.
+
+An example of a build is `medic:medic:2.14.0`. An example of a channel would be `@medic:medic:release`. When installing, this channel would be set to install the latest version in the release channel.
+
+There are two ways to write builds and channels, full and Medic-only.
+
+The full format contains both the namespace and application name of what you wish to deploy: `foo:bar:1.0.0` would install the `bar` application at version `1.0.0` from the `foo` namespace. The Medic-only version is just the version section, and is so `1.0.0` is equivilent to `medic:medic:1.0.0`.
+
+Similarly, if you wish to specific a certain type (e.g. `@release`), the full format would be `@foo:bar:release`.
+
+The Medic-only formatting may go away at some point, it's just convenient for now!
