@@ -86,7 +86,10 @@ let version = argv.install || argv.stage;
 if (version === true) {
   version = 'medic:medic:master';
 }
-version = packageUtils.parse(version);
+
+if (version) {
+  version = packageUtils.parse(version);
+}
 
 mode.daemon = argv.daemon;
 
