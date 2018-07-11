@@ -120,7 +120,7 @@ module.exports = (mode, deployDoc) => {
   };
 
   const processDdoc = (ddoc, firstRun) => {
-    const wrappedDdoc = ddocWrapper(ddoc);
+    const wrappedDdoc = ddocWrapper(ddoc, mode);
     const changedApps = wrappedDdoc.getChangedApps();
     const appsToDeploy = changedApps.length;
 
