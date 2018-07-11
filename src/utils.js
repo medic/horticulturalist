@@ -141,8 +141,6 @@ module.exports = {
         }
 
         if (err.code === 'ESOCKETTIMEDOUT') {
-          // Too many ddocs? Let's try them one by one
-
           debug('Bulk docs timed out, attempting to write one by one');
           return writeDocsInSeries(docs);
         }
