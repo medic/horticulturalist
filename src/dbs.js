@@ -40,7 +40,7 @@ if (process.env.TESTING) {
   if(!DEPLOY_URL) throw new Error('COUCH_URL env var not set.');
 
   module.exports = {
-    app: new PouchDB(DEPLOY_URL/*, {ajax: {timeout: 60000}}*/),
+    app: new PouchDB(DEPLOY_URL),
     builds: new PouchDB(BUILDS_URL),
     activeTasks: activeTasks
   };
