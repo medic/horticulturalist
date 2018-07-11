@@ -77,6 +77,11 @@ if (active(argv.install, argv.stage, argv['complete-install']).length > 1) {
   process.exit(-1);
 }
 
+if (argv.bootstrap) {
+  info('--bootstrap is DEPRECATED, use --install instead');
+  argv.install = argv.bootstrap;
+}
+
 const action = argv.install             ? ACTIONS.INSTALL :
                argv.stage               ? ACTIONS.STAGE :
                argv['complete-install'] ? ACTIONS.COMPLETE :

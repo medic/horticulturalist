@@ -47,6 +47,27 @@ const writeDocsInSeries = docs => {
     Promise.resolve());
 };
 
+// Like getStagedDdocs, but instead of doing it in one go tries to break it
+// up. This will be slower but less likely to cause timeouts.
+const getStagedDdocsSlower = (attachments) => {
+  debug('Falling back onto getting staged ddocs in a slower, safer way');
+  debug('Getting list of ddocs');
+  return DB.app.allDocs({
+    startkey: '_design/:staged:',
+    endkey: '_design/:staged:\ufff0'
+  }).then(({rows}) => {
+    const ids = rows.map(r => r.id);
+
+    const fetchedDocuments = [];
+    return ids.reduce((promise, id) => promise
+      .then(() => debug(`Individually fetching ${id}`))
+      .then(() => DB.app.get(id, {attachments: attachments, binary: attachments}))
+      .then(doc => fetchedDocuments.push(doc)),
+      Promise.resolve()
+    ).then(() => fetchedDocuments);
+  });
+};
+
 module.exports = {
   mainDdocId: deployDdoc => `_design/${deployDdoc.build_info.application}`,
   getStagedDdocId: id => id.replace('_design/', '_design/:staged:'),
@@ -72,6 +93,12 @@ module.exports = {
           _id: r.id,
           _rev: r.value.rev
         }));
+      }
+    }).catch(err => {
+      if (err.error === 'timeout' && includeDocs) {
+        return getStagedDdocsSlower(attachments);
+      } else {
+        throw err;
       }
     });
   },
