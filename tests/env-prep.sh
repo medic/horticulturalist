@@ -11,6 +11,9 @@ echo "CouchDB Started"
 # Spoiler, CouchDB hasn't actually started yet!
 sleep 5;
 
+echo "Adding default databases"
+curl -X PUT 'http://localhost:5984/{_users,_replicator,_global_changes,_metadata,admins}'
+
 echo "Adding default admin user to config"
 curl -X PUT http://localhost:5984/_node/${COUCH_NODE_NAME}/_config/admins/admin -d '"pass"';
 
