@@ -10,7 +10,7 @@ echo "CouchDB Started"
 
 
 echo "DEBUGZ"
-curl http://localhost:5984/_memberships
+curl -vvv http://localhost:5984/_memberships
 
 echo "Adding default admin user to config"
 curl -v -X PUT http://localhost:5984/_node/${COUCH_NODE_NAME}/_config/admins/admin -d '"pass"';
