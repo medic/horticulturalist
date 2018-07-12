@@ -58,7 +58,7 @@ module.exports = (mode, deployDoc) => {
         });
 
         debug('Writing secondary ddocs');
-        return utils.strictBulkDocs(secondaryDdocs)
+        return utils.betterBulkDocs(secondaryDdocs)
           .then(results => debug(`Secondary ddocs written: ${JSON.stringify(results)}`));
       });
   };
