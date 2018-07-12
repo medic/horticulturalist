@@ -1,5 +1,7 @@
 #!/bin/sh
 
+echo "Prepping test environment"
+
 docker run -d -p 5984:5984 --name couch couchdb:2
 echo "Starting CouchDB 2.x"
 until nc -z localhost 5984; do sleep 1; done

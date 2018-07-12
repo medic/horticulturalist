@@ -8,7 +8,4 @@ services:
   - docker
 
 before_install:
-  - docker run -d -p 5984:5984 --name couch couchdb:2
-  - echo "Starting CouchDB 2.x"
-  - until nc -z localhost 5984; do sleep 1; done
-  - echo "CouchDB Started"
+ - ./tests/env-prep.sh
