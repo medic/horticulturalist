@@ -8,8 +8,9 @@ echo "Starting CouchDB 2.x"
 until nc -z localhost 5984; do sleep 1; done
 echo "CouchDB Started"
 
-# The next bit is pulled from our instructions: it should be updated
-# if those instructions are
+
+echo "DEBUGZ"
+curl http://localhost:5984/_memberships
 
 echo "Adding default admin user to config"
 curl -v -X PUT http://localhost:5984/_node/${COUCH_NODE_NAME}/_config/admins/admin -d '"pass"';
