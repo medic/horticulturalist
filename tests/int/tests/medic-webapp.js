@@ -17,7 +17,7 @@ describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
 
   it('should --install master without error', () => {
     return hortiUtils.start([
-      '--install=medic:medic:master',
+      '--install=medic:medic:block_on_api',
       '--test'
     ], {
       waitUntil: /Medic API listening/,
