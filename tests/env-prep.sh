@@ -8,6 +8,7 @@ echo "Starting CouchDB 2.x"
 until nc -z localhost 5984; do sleep 1; done
 echo "CouchDB Started"
 
+sleep 15;
 
 echo "DEBUGZ"
 curl -vvv http://localhost:5984/_memberships
