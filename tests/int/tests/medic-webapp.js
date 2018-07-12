@@ -33,7 +33,6 @@ describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
       '--test'
     ], {
       waitUntil: /Medic API listening/,
-      buildServer: PROD_BUILD_URL,
       log: true
     }).then(horti => {
       horti.kill();
