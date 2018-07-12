@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 echo "Prepping test environment"
 
@@ -10,12 +11,19 @@ echo "CouchDB Started"
 # The next bit is pulled from our instructions: it should be updated
 # if those instructions are
 
-curl -v -X PUT http://localhost:5986/_config/admins/admin -d '"pass"'
-curl -v -X PUT http://admin:pass@localhost:5986/_config/chttpd/require_valid_user \
-  -d '"true"' -H "Content-Type: application/json";
+echo "Adding default admin user to config"
+curl -v -X PUT http://localhost:5984/_node/${COUCH_NODE_NAME}/_config/admins/admin -d '"pass"';
+
+echo "Adding default admin user to _users"
 curl -v -X POST http://admin:pass@localhost:5984/_users \
   -H "Content-Type: application/json" \
-  -d '{"_id": "org.couchdb.user:admin", "name": "admin", "password":"pass", "type":"user", "roles":[]}'
+  -d 'z{"_id": "org.couchdb.user:admin", "name": "admin", "password":"pass", "type":"user", "roles":[]}'
+
+echo "Configuring require_valid_user"
+curl -v -X PUT --data '"true"' http://admin:pass@localhost:5984/_node/${COUCH_NODE_NAME}/_config/chttpd/require_valid_user
+
+echo "Configuring max_http_request_size"
+curl -v -X PUT --data '"4294967296"' http://admin:pass@localhost:5984/_node/${COUCH_NODE_NAME}/_config/httpd/max_http_request_size
 
 echo "CouchDB setup correctly"
 
