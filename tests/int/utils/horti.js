@@ -1,5 +1,6 @@
 const fs = require('fs-extra'),
-      spawn = require('child_process').spawn;
+      { promisify } = require('util'),
+      { spawn } = require('child_process');
 
 const { APP_URL, API_PORT, BUILDS_URL } = require('./constants');
 
@@ -20,7 +21,6 @@ module.exports = {
       }
 
       const child = spawn('node', ['src/index.js'].concat(args), {
-        // cwd: serviceName,
         env: {
           API_PORT: API_PORT,
           COUCH_URL: APP_URL,
@@ -59,7 +59,5 @@ module.exports = {
       });
     });
   },
-  cleanWorkingDir: () => {
-    return new Promise((yay, nay) => fs.remove('./test-workspace', err => err ? nay(err) : yay()));
-  }
+  cleanWorkingDir: () => promisify(fs.remove)('./test-workspace')
 };
