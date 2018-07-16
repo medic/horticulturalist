@@ -7,8 +7,13 @@ services:
   # docker is used for couchdb 2.0 (not currently available as a travis service)
   - docker
 
+env:
+  global:
+  # - COUCH_URL=http://admin:pass@localhost:5984/medic
+  # - API_URL=http://admin:pass@localhost:5988
+  - COUCH_NODE_NAME=nonode@nohost
+  - HORTI_TEST_APPS=http://admin:pass@localhost:5984/test-horti-app
+  - HORTI_TEST_BUILDS=http://admin:pass@localhost:5984/test-medic-builds
+
 before_install:
-  - docker run -d -p 5984:5984 --name couch couchdb:2
-  - echo "Starting CouchDB 2.x"
-  - until nc -z localhost 5984; do sleep 1; done
-  - echo "CouchDB Started"
+ - ./tests/env-prep.sh

@@ -1,4 +1,6 @@
-const spawn = require('child_process').spawn;
+const fs = require('fs-extra'),
+      { promisify } = require('util'),
+      { spawn } = require('child_process');
 
 const { APP_URL, API_PORT, BUILDS_URL } = require('./constants');
 
@@ -12,17 +14,19 @@ module.exports = {
   *  - 'string' || /regex/: once this is seen in the logs or the process exits
   *    with code 0
   */
-  start: (args, waitUntil, log) => {
+  start: (args, {waitUntil, log, buildServer} = {}) => {
     return new Promise((resolve, reject) => {
-      console.log('Starting horti with', JSON.stringify(args, null, 2));
+      if (log) {
+        console.log('Starting horti with', JSON.stringify(args, null, 2));
+      }
+
       const child = spawn('node', ['src/index.js'].concat(args), {
-        // cwd: serviceName,
         env: {
           API_PORT: API_PORT,
           COUCH_URL: APP_URL,
           COUCH_NODE_NAME: process.env.COUCH_NODE_NAME,
           PATH: process.env.PATH,
-          HORTI_BUILDS_SERVER: BUILDS_URL
+          HORTI_BUILDS_SERVER: buildServer || BUILDS_URL
         }
       });
 
@@ -54,5 +58,6 @@ module.exports = {
         }
       });
     });
-  }
+  },
+  cleanWorkingDir: () => promisify(fs.remove)('./test-workspace')
 };

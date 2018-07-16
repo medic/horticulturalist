@@ -24,6 +24,15 @@ const MODES = {
     stop: [ 'bin/svc-stop', '{{app}}' ],
     manageAppLifecycle: true,
   },
+  // intentionally not documented externally, this is a place that int. tests
+  // can work out of without over-writing existing work
+  test: {
+    name: 'test',
+    deployments: './test-workspace/deployments',
+    start: [ 'bin/svc-start', './test-workspace/deployments', '{{app}}' ],
+    stop: [ 'bin/svc-stop', '{{app}}' ],
+    manageAppLifecycle: true,
+  },
   local: {
     name: 'local',
     deployments: `${os.homedir()}/.horticulturalist/deployments`,
@@ -50,16 +59,18 @@ const argv = parseArgs(process.argv, {
   }
 });
 
-if (active(argv.dev, argv.local, argv['medic-os']).length !== 1) {
+if (active(argv.dev, argv.local, argv['medic-os'], argv.test).length !== 1) {
   help.outputHelp();
   error('You must pick one mode to run in.');
   process.exit(-1);
 }
 
 const mode = argv.dev         ? MODES.development :
+             argv.test        ? MODES.test :
              argv.local       ? MODES.local :
              argv['medic-os'] ? MODES.medic_os :
              undefined;
+
 
 if (argv.version || argv.v) {
   help.outputVersion();
