@@ -13,7 +13,6 @@ const DB = require('./dbs'),
 
 const newDeployment = deployDoc =>
   !!deployDoc &&
-  !deployDoc._deleted &&
   deployDoc._id === HORTI_UPGRADE_DOC &&
   (deployDoc.action !== ACTIONS.STAGE || !deployDoc.staging_complete);
 
@@ -51,6 +50,10 @@ const watchForDeployments = (mode) => {
   watch.on('change', change => {
     const deployDoc = change.doc;
 
+    if (deployDoc._deleted) {
+      return;
+    }
+
     if (module.exports._newDeployment(deployDoc)) {
       info(`Change in ${HORTI_UPGRADE_DOC} detected`);
       watch.cancel();
@@ -85,7 +88,9 @@ const watchForDeployments = (mode) => {
             version: legacyDeployInfo.version
           },
           action: 'install'
-        }));
+        }))
+        .then(() => info('Legacy doc converted successfully'))
+        .catch(fatality);
     }
   });
 };
