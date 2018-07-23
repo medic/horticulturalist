@@ -8,12 +8,13 @@ const { error, info } = require('./log');
 
 const { ACTIONS } = require('./constants');
 
-const daemon = require('./daemon'),
+const apps = require('./apps'),
       bootstrap = require('./bootstrap'),
+      checks = require('./checks'),
+      daemon = require('./daemon'),
       fatality = require('./fatality'),
       help = require('./help'),
       lockfile = require('./lockfile'),
-      apps = require('./apps'),
       packageUtils = require('./package');
 
 const MODES = {
@@ -135,10 +136,10 @@ onExit((code) => {
 });
 
 lockfile.wait()
+  .then(() => info(`Starting Horticulturalist ${require('../package.json').version} ${mode.daemon ? 'daemon ' : ''}in ${mode.name} mode`))
+  .then(checks)
   .then(() => {
     fs.mkdirs(mode.deployments);
-
-    info(`Starting Horticulturalist ${require('../package.json').version} ${mode.daemon ? 'daemon ' : ''}in ${mode.name} mode`);
 
     if (action === ACTIONS.INSTALL) {
       return bootstrap.install(version);
