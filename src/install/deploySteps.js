@@ -110,7 +110,6 @@ module.exports = (mode, deployDoc) => {
 
         if(fs.existsSync(linkString)) {
           const oldPath = app.deployPath('old');
-
           if (fs.existsSync(oldPath)) {
             fs.unlinkSync(oldPath);
           }
