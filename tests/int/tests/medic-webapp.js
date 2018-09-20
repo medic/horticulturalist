@@ -28,6 +28,32 @@ describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
     });
   });
 
+  it('should --install an upgrade without error', () => {
+    return hortiUtils.start([
+      '--install=medic:medic:3.0.x',
+      '--test'
+    ], {
+      waitUntil: /Watching for deployments/,
+      buildServer: PROD_BUILD_URL,
+      log: true
+    }).then(horti => {
+      horti.kill();
+    });
+  });
+
+  it('should --install a second upgrade without error', () => {
+    return hortiUtils.start([
+      '--install=medic:medic:3.1.x',
+      '--test'
+    ], {
+      waitUntil: /Watching for deployments/,
+      buildServer: PROD_BUILD_URL,
+      log: true
+    }).then(horti => {
+      horti.kill();
+    });
+  });
+
   it('should start the daemon with no install without error', () => {
     return hortiUtils.start([
       '--test'

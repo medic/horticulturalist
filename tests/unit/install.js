@@ -5,7 +5,8 @@ const DB = require('../../src/dbs');
 const install = require('../../src/install'),
       deploySteps = require('../../src/install/deploySteps'),
       utils = require('../../src/utils'),
-      ddocWrapper = require('../../src/install/ddocWrapper');
+      ddocWrapper = require('../../src/install/ddocWrapper'),
+      fs = require('fs-extra');
 
 describe('Installation flow', () => {
   const deployDoc = {
@@ -489,6 +490,142 @@ describe('Installation flow', () => {
               staged: true
             });
           });
+      });
+    });
+
+    describe('updateSymlink', () => {
+      let steps,
+          deployPathStub;
+      const deployPath = function(pathParam) {
+        return deployPathStub(this.name, pathParam);
+      };
+
+      beforeEach(() => {
+        sinon.stub(fs, 'existsSync');
+        sinon.stub(fs, 'readlinkSync');
+        sinon.stub(fs, 'unlinkSync');
+        sinon.stub(fs, 'symlinkSync');
+
+        steps = deploySteps(null, deployDoc);
+        deployPathStub = sinon.stub().callsFake((app, pathParam) => ['path', app, pathParam].join('/'));
+      });
+
+      it('does nothing if no changed apps', () => {
+        return steps._updateSymlink([]).then(() => {
+          fs.existsSync.callCount.should.equal(0);
+          fs.readlinkSync.callCount.should.equal(0);
+          fs.unlinkSync.callCount.should.equal(0);
+          fs.symlinkSync.callCount.should.equal(0);
+        });
+      });
+
+      it('creates `current` symlink', () => {
+        fs.existsSync.returns(false);
+
+        const apps = [{
+          name: 'app1',
+          deployPath: deployPath
+        }, {
+          name: 'app2',
+          deployPath: deployPath
+        }];
+
+        return steps._updateSymlink(apps).then(() => {
+          deployPathStub.callCount.should.equal(4);
+          deployPathStub.args[0].should.deep.equal(['app1', 'current']);
+          deployPathStub.args[1].should.deep.equal(['app1', undefined]);
+          deployPathStub.args[2].should.deep.equal(['app2', 'current']);
+          deployPathStub.args[3].should.deep.equal(['app2', undefined]);
+
+          fs.existsSync.callCount.should.equal(2);
+          fs.existsSync.args[0].should.deep.equal(['path/app1/current']);
+          fs.existsSync.args[1].should.deep.equal(['path/app2/current']);
+          fs.symlinkSync.callCount.should.equal(2);
+          fs.symlinkSync.args[0].should.deep.equal(['path/app1/', 'path/app1/current']);
+          fs.symlinkSync.args[1].should.deep.equal(['path/app2/', 'path/app2/current']);
+        });
+      });
+
+      it('overwrites existing `current` symlink', () => {
+        const apps = [{
+          name: 'app1',
+          deployPath: deployPath
+        }, {
+          name: 'app2',
+          deployPath: deployPath
+        }];
+
+        fs.existsSync.returns(false);
+        fs.existsSync.withArgs('path/app1/current').returns(true);
+        fs.existsSync.withArgs('path/app2/current').returns(true);
+
+        fs.readlinkSync.callsFake(path => `actual-${path}`);
+
+        return steps._updateSymlink(apps).then(() => {
+          deployPathStub.callCount.should.equal(4);
+          deployPathStub.args[0].should.deep.equal(['app1', 'current']);
+          deployPathStub.args[1].should.deep.equal(['app1', undefined]);
+          deployPathStub.args[2].should.deep.equal(['app2', 'current']);
+          deployPathStub.args[3].should.deep.equal(['app2', undefined]);
+
+          fs.existsSync.callCount.should.equal(4);
+          fs.existsSync.args[0].should.deep.equal(['path/app1/current']);
+          fs.existsSync.args[1].should.deep.equal(['actual-path/app1/current']);
+          fs.existsSync.args[2].should.deep.equal(['path/app2/current']);
+          fs.existsSync.args[3].should.deep.equal(['actual-path/app2/current']);
+
+          fs.symlinkSync.callCount.should.equal(2);
+          fs.symlinkSync.args[0].should.deep.equal(['path/app1/', 'path/app1/current']);
+          fs.symlinkSync.args[1].should.deep.equal(['path/app2/', 'path/app2/current']);
+
+          fs.unlinkSync.callCount.should.equal(2);
+          fs.unlinkSync.args[0].should.deep.equal(['path/app1/current']);
+          fs.unlinkSync.args[1].should.deep.equal(['path/app2/current']);
+        });
+      });
+
+      it('overwrites existing `old` symlink', () => {
+        const apps = [{
+          name: 'app1',
+          deployPath: deployPath
+        }, {
+          name: 'app2',
+          deployPath: deployPath
+        }];
+
+        fs.existsSync.returns(true);
+        fs.readlinkSync.callsFake(path => `actual-${path}`);
+
+        return steps._updateSymlink(apps).then(() => {
+          deployPathStub.callCount.should.equal(6);
+          deployPathStub.args[0].should.deep.equal(['app1', 'current']);
+          deployPathStub.args[1].should.deep.equal(['app1', 'old']);
+          deployPathStub.args[2].should.deep.equal(['app1', undefined]);
+          deployPathStub.args[3].should.deep.equal(['app2', 'current']);
+          deployPathStub.args[4].should.deep.equal(['app2', 'old']);
+          deployPathStub.args[5].should.deep.equal(['app2', undefined]);
+
+          fs.existsSync.callCount.should.equal(6);
+          fs.existsSync.args[0].should.deep.equal(['path/app1/current']);
+          fs.existsSync.args[1].should.deep.equal(['actual-path/app1/current']);
+          fs.existsSync.args[2].should.deep.equal(['path/app1/old']);
+          fs.existsSync.args[3].should.deep.equal(['path/app2/current']);
+          fs.existsSync.args[4].should.deep.equal(['actual-path/app2/current']);
+          fs.existsSync.args[5].should.deep.equal(['path/app2/old']);
+
+          fs.symlinkSync.callCount.should.equal(4);
+          fs.symlinkSync.args[0].should.deep.equal(['actual-path/app1/current', 'path/app1/old']);
+          fs.symlinkSync.args[1].should.deep.equal(['path/app1/', 'path/app1/current']);
+          fs.symlinkSync.args[2].should.deep.equal(['actual-path/app2/current', 'path/app2/old']);
+          fs.symlinkSync.args[3].should.deep.equal(['path/app2/', 'path/app2/current']);
+
+
+          fs.unlinkSync.callCount.should.equal(4);
+          fs.unlinkSync.args[0].should.deep.equal(['path/app1/old']);
+          fs.unlinkSync.args[1].should.deep.equal(['path/app1/current']);
+          fs.unlinkSync.args[2].should.deep.equal(['path/app2/old']);
+          fs.unlinkSync.args[3].should.deep.equal(['path/app2/current']);
+        });
       });
     });
   });
