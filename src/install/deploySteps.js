@@ -109,11 +109,11 @@ module.exports = (mode, deployDoc) => {
         const linkString = fs.readlinkSync(livePath);
 
         if(fs.existsSync(linkString)) {
-          const oldPath = app.deployPath('old');
-          if (fs.existsSync(oldPath)) {
-            fs.unlinkSync(oldPath);
+          const oldLinkString = app.deployPath('old');
+          if (fs.existsSync(oldLinkString)) {
+            fs.unlinkSync(oldLinkString);
           }
-          fs.symlinkSync(linkString, oldPath);
+          fs.symlinkSync(linkString, oldLinkString);
         } else debug(`Old app not found at ${linkString}.`);
 
         fs.unlinkSync(livePath);
