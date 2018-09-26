@@ -5,6 +5,12 @@ const dbUtils = require('../utils/db'),
 
 const PROD_BUILD_URL = 'https://staging.dev.medicmobile.org/_couch/builds';
 
+const waitCondition = {
+  waitUntil: /Watching for deployments/,
+  buildServer: PROD_BUILD_URL,
+  log: true
+};
+
 describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
   // These tests require connecting to the PROD builds server
   // and so can be very slow.
@@ -19,39 +25,17 @@ describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
     return hortiUtils.start([
       '--install=medic:medic:master',
       '--test'
-    ], {
-      waitUntil: /Medic API listening/,
-      buildServer: PROD_BUILD_URL,
-      log: true
-    }).then(horti => {
+    ], waitCondition).then(horti => {
       horti.kill();
     });
   });
 
-  it('should --install an upgrade without error', () => {
-    return hortiUtils.start([
-      '--install=medic:medic:3.0.x',
-      '--test'
-    ], {
-      waitUntil: /Watching for deployments/,
-      buildServer: PROD_BUILD_URL,
-      log: true
-    }).then(horti => {
-      horti.kill();
-    });
-  });
-
-  it('should --install a second upgrade without error', () => {
-    return hortiUtils.start([
-      '--install=medic:medic:3.1.x',
-      '--test'
-    ], {
-      waitUntil: /Watching for deployments/,
-      buildServer: PROD_BUILD_URL,
-      log: true
-    }).then(horti => {
-      horti.kill();
-    });
+  it('should --install two upgrades without error', () => {
+    return hortiUtils
+      .start([ '--install=medic:medic:3.0.x', '--test' ], waitCondition)
+      .then(horti => horti.kill())
+      .then(() => hortiUtils.start([ '--install=medic:medic:3.1.x', '--test' ], waitCondition))
+      .then(horti => horti.kill());
   });
 
   it('should start the daemon with no install without error', () => {
