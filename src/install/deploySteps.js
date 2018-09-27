@@ -109,7 +109,11 @@ module.exports = (mode, deployDoc) => {
         const linkString = fs.readlinkSync(livePath);
 
         if(fs.existsSync(linkString)) {
-          fs.symlinkSync(linkString, app.deployPath('old'));
+          const oldLinkString = app.deployPath('old');
+          if (fs.existsSync(oldLinkString)) {
+            fs.unlinkSync(oldLinkString);
+          }
+          fs.symlinkSync(linkString, oldLinkString);
         } else debug(`Old app not found at ${linkString}.`);
 
         fs.unlinkSync(livePath);
@@ -171,7 +175,8 @@ module.exports = (mode, deployDoc) => {
     _deployStagedDdocs: deployStagedDdocs,
     _loadStagedDdocs: loadStagedDdocs,
     _deploySecondaryDdocs: deploySecondaryDdocs,
-    _deployPrimaryDdoc: deployPrimaryDdoc
+    _deployPrimaryDdoc: deployPrimaryDdoc,
+    _updateSymlink: updateSymlink
   };
 
   return moduleWithContext;
