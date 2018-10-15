@@ -60,3 +60,14 @@ The full format contains both the namespace and application name of what you wis
 Similarly, if you wish to specific a certain type (e.g. `@release`), the full format would be `@foo:bar:release`.
 
 The Medic-only formatting may go away at some point, it's just convenient for now!
+
+# Development
+
+Most development is managed in [the horticulturalist tag in medic/medic-webapp](https://github.com/medic/medic-webapp/issues?q=is%3Aopen+is%3Aissue+label%3Ahorticulturalist).
+
+## Releasing
+
+Horti follows semver. Releasing is currently a manual process:
+ - All tests in master should pass!
+ - Tag the release, increasing the patch, minor or major depending on what's changed.
+ - Publish to npm with `npm publish`. If you don't have access ask someone in Slack.
