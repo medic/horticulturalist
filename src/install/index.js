@@ -224,7 +224,9 @@ const predeploySteps = (deployDoc) => {
     .then(() => stage('horti.stage.extractingDdocs', 'Extracting ddocs'))
     .then(() => extractDdocs(ddoc))
     .then(() => stage('horti.stage.warmingViews', 'Warming views'))
-    .then(() => warmViews(deployDoc))
+    // View warming is temporarily disabled because timeouts are not correctly caught
+    // https://github.com/medic/medic-webapp/issues/4893
+    //.then(() => warmViews(deployDoc))
     .then(() => stage('horti.stage.readyToDeploy', 'View warming complete, ready to deploy'))
     .then(() => ddoc);
 };
