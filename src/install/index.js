@@ -69,14 +69,17 @@ const warmViews = (deployDoc) => {
           task.type === 'indexer' && task.design_document.includes(':staged:'));
 
         return updateIndexers(relevantTasks);
-      })
-      .then(() => logIndexersProgress());
+      });
   };
 
   // logs indexer progress in the console
   // _design/doc  [||||||||||29%||||||||||_________________________________________________________]
-  const logIndexersProgress = () => {
-    const logProgress = indexer => {
+  const logIndexersProgress = (indexers) => {
+    if (!indexers || !indexers.length) {
+      return;
+    }
+
+    const logProgress = (indexer) => {
       // progress bar stretches to match console width.
       // 60 is roughly the nbr of chars displayed around the bar (ddoc name + debug padding)
       const barLength = process.stdout.columns - 60,
@@ -90,11 +93,6 @@ const warmViews = (deployDoc) => {
 
       debug(`${ddocName}[${bar}]`);
     };
-
-    const indexers = deployDoc.log[deployDoc.log.length - 1].indexers;
-    if (!indexers || !indexers.length) {
-      return;
-    }
 
     debug('View indexer progress');
     indexers.forEach(logProgress);
@@ -113,6 +111,8 @@ const warmViews = (deployDoc) => {
     indexers.forEach(calculateAverageProgress);
 
     entry.indexers = indexers;
+
+    logIndexersProgress(indexers);
     return utils.update(deployDoc);
   };
 
