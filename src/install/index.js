@@ -88,7 +88,7 @@ const warmViews = (deployDoc) => {
               .padEnd(barLength, '_'),
             ddocName = indexer.design_document.padEnd(35, ' ');
 
-      stageLog(`${ddocName}[${bar}]`);
+      debug(`${ddocName}[${bar}]`);
     };
 
     const indexers = deployDoc.log[deployDoc.log.length - 1].indexers;
@@ -96,7 +96,7 @@ const warmViews = (deployDoc) => {
       return;
     }
 
-    stageLog('View indexer progress');
+    debug('View indexer progress');
     indexers.forEach(logProgress);
   };
 
