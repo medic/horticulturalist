@@ -4,6 +4,8 @@ const { info, debug, stage: stageLog } = require('../log'),
       utils = require('../utils'),
       ddocWrapper = require('./ddocWrapper');
 
+const ACTIVE_TASK_QUERY_INTERVAL = 10 * 1000; // 10 seconds
+
 const stager = deployDoc => (key, message) => {
   stageLog(message);
   return utils.appendDeployLog(deployDoc, {key: key, message: message});
@@ -58,6 +60,8 @@ const extractDdocs = ddoc => {
 };
 
 const warmViews = (deployDoc) => {
+  let viewsWarmed = false;
+
   const writeProgress = () => {
     return DB.activeTasks()
       .then(tasks => {
@@ -66,7 +70,34 @@ const warmViews = (deployDoc) => {
 
         return updateIndexers(relevantTasks);
       })
-      .then(() => process.stdout.write('.'));
+      .then(() => logIndexersProgress());
+  };
+
+  // logs indexer progress in the console
+  // _design/doc  [||||||||||29%||||||||||_________________________________________________________]
+  const logIndexersProgress = () => {
+    const logProgress = indexer => {
+      // progress bar stretches to match console width.
+      // 60 is roughly the nbr of chars displayed around the bar (ddoc name + debug padding)
+      const barLength = process.stdout.columns - 60,
+            progress = `${indexer.progress}%`,
+            filledBarLength = (indexer.progress / 100 * barLength),
+            bar = progress
+              .padStart((filledBarLength + progress.length) / 2, '|')
+              .padEnd(filledBarLength, '|')
+              .padEnd(barLength, '_'),
+            ddocName = indexer.design_document.padEnd(35, ' ');
+
+      stageLog(`${ddocName}[${bar}]`);
+    };
+
+    const indexers = deployDoc.log[deployDoc.log.length - 1].indexers;
+    if (!indexers || !indexers.length) {
+      return;
+    }
+
+    stageLog('View indexer progress');
+    indexers.forEach(logProgress);
   };
 
   // Groups tasks by `design_document` and calculates the average progress per ddoc
@@ -112,16 +143,26 @@ const warmViews = (deployDoc) => {
     });
   };
 
+  // Query _active_tasks every 10 seconds until `viewsWarmed` is true
+  const writeProgressTimeout = () => {
+    setTimeout(() => {
+      if (viewsWarmed) {
+        return;
+      }
+      writeProgress().then(writeProgressTimeout);
+    }, ACTIVE_TASK_QUERY_INTERVAL);
+  };
+
   const probeViews = viewlist => {
-    return Promise.all(
-      viewlist.map(view => DB.app.query(view, {limit: 1})).concat(writeProgress())
-    )
+    return Promise
+      .all(viewlist.map(view => DB.app.query(view, { limit: 1 })))
       .then(() => {
+        viewsWarmed = true;
         info('Warming views complete');
         return updateIndexers();
       })
       .catch(err => {
-        if (err.code !== 'ESOCKETTIMEDOUT') {
+        if (err.error !== 'timeout') {
           throw err;
         }
 
@@ -146,7 +187,10 @@ const warmViews = (deployDoc) => {
       });
 
       return utils.update(deployDoc)
-        .then(() => probeViews(queries));
+        .then(() => {
+          writeProgressTimeout();
+          return probeViews(queries);
+        });
     });
 };
 
@@ -224,9 +268,7 @@ const predeploySteps = (deployDoc) => {
     .then(() => stage('horti.stage.extractingDdocs', 'Extracting ddocs'))
     .then(() => extractDdocs(ddoc))
     .then(() => stage('horti.stage.warmingViews', 'Warming views'))
-    // View warming is temporarily disabled because timeouts are not correctly caught
-    // https://github.com/medic/medic-webapp/issues/4893
-    //.then(() => warmViews(deployDoc))
+    .then(() => warmViews(deployDoc))
     .then(() => stage('horti.stage.readyToDeploy', 'View warming complete, ready to deploy'))
     .then(() => ddoc);
 };

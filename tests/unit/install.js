@@ -8,6 +8,8 @@ const install = require('../../src/install'),
       ddocWrapper = require('../../src/install/ddocWrapper'),
       fs = require('fs-extra');
 
+let clock;
+
 describe('Installation flow', () => {
   const deployDoc = {
     _id: 'horti-upgrade',
@@ -20,7 +22,11 @@ describe('Installation flow', () => {
     log: []
   };
 
-  afterEach(() => sinon.restore());
+  afterEach(() => {
+    sinon.restore();
+    clock.restore();
+  });
+
   beforeEach(() => {
     DB.app.allDocs = sinon.stub();
     DB.app.bulkDocs = sinon.stub();
@@ -32,6 +38,7 @@ describe('Installation flow', () => {
     DB.app.compact = sinon.stub();
     DB.builds.get = sinon.stub();
     DB.activeTasks = sinon.stub();
+    clock = sinon.useFakeTimers();
   });
 
   describe('Pre cleanup', () => {
@@ -172,13 +179,15 @@ describe('Installation flow', () => {
           }
         }}
       ]});
-      DB.app.query.resolves();
+      DB.app.query.callsFake(() => {
+        clock.tick(10000);
+        return Promise.resolve();
+      });
       DB.app.put.resolves({});
       DB.activeTasks.resolves([relevantIndexer, irrelevantIndexer]);
 
       return install._warmViews(deployDoc)
         .then(() => {
-        console.log('13243214324312');
         DB.app.query.callCount.should.equal(2);
         DB.app.query.args[0][0].should.equal(':staged:some-views/a_view');
         DB.app.query.args[0][1].should.deep.equal({limit: 1});
@@ -262,8 +271,14 @@ describe('Installation flow', () => {
             }}
         ]});
 
-      DB.app.query.rejects({ code: 'ESOCKETTIMEDOUT' });
-      DB.app.query.onCall(4).resolves();
+      DB.app.query.callsFake(() => {
+        clock.tick(10000);
+        return Promise.reject({ error: 'timeout' });
+      });
+      DB.app.query.onCall(4).callsFake(() => {
+        clock.tick(10000);
+        return Promise.resolve();
+      });
       indexers.forEach((indexer, key) => {
         DB.activeTasks.onCall(key).resolves(indexer);
       });
@@ -389,6 +404,69 @@ describe('Installation flow', () => {
           ]
         }]);
 
+      });
+    });
+
+    it('should query active tasks every 10 seconds until view are warmed', () => {
+      const indexers = [
+        [ {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 5, pid: 'd1-1', type: 'indexer'} ],
+        [ {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 10, pid: 'd1-1', type: 'indexer'} ],
+        [ {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 15, pid: 'd1-1', type: 'indexer'} ],
+        [ {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 20, pid: 'd1-1', type: 'indexer'} ],
+        [ {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 70, pid: 'd1-1', type: 'indexer'} ],
+        [ {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 96, pid: 'd1-1', type: 'indexer'} ]
+      ];
+
+      DB.app.allDocs.resolves({ rows: [
+          { doc: {
+              _id: ':staged:ddoc1',
+              views: {
+                a_view: 'the map etc'
+              }
+            }}
+        ]});
+
+      // there is an issue with Sinon which makes promises wrapped in setTimeout to not have their callbacks called
+      // when using lolex fake timers (https://github.com/sinonjs/sinon/issues/738#issuecomment-262806704)
+      // suggested solutions use async/await, but jshint isn't supporting those ATM
+      const asyncTick = ms => {
+        return Promise.resolve()
+          .then(() => clock.tick(ms))
+          .then(() => {});
+      };
+
+      DB.app.query.callsFake(() => {
+        return asyncTick(10001)
+          .then(() => asyncTick(10001))
+          .then(() => Promise.reject({ error: 'timeout' }));
+      });
+      DB.app.query.onCall(2).callsFake(() => {
+        return asyncTick(10001)
+          .then(() => asyncTick(10001))
+          .then(() => Promise.resolve());
+      });
+      indexers.forEach((indexer, key) => {
+        DB.activeTasks.onCall(key).resolves(indexer);
+      });
+      deployDoc.log = [];
+      const deployDocs = [];
+      sinon.stub(utils, 'update').callsFake(doc => {
+        deployDocs.push(JSON.parse(JSON.stringify(doc)));
+        return Promise.resolve();
+      });
+
+      return install._warmViews(deployDoc).then(() => {
+        DB.activeTasks.callCount.should.equal(6);
+        DB.app.query.callCount.should.equal(3);
+        deployDocs.length.should.equal(8);
+        deployDocs[0].log.should.deep.equal([{ type: 'warm_log' }]);
+        deployDocs[1].log[0].indexers[0].progress.should.equal(5);
+        deployDocs[2].log[0].indexers[0].progress.should.equal(10);
+        deployDocs[3].log[0].indexers[0].progress.should.equal(15);
+        deployDocs[4].log[0].indexers[0].progress.should.equal(20);
+        deployDocs[5].log[0].indexers[0].progress.should.equal(70);
+        deployDocs[6].log[0].indexers[0].progress.should.equal(96);
+        deployDocs[7].log[0].indexers[0].progress.should.equal(100);
       });
     });
   });
