@@ -59,14 +59,15 @@ const extractDdocs = ddoc => {
   return utils.betterBulkDocs(compiledDocs);
 };
 
-const warmViews = (deployDoc) => {
+const warmViews = (deployDoc, stagedViewsOnly = true) => {
   let viewsWarmed = false;
-
   const writeProgress = () => {
     return DB.activeTasks()
       .then(tasks => {
         const relevantTasks = tasks.filter(task =>
-          task.type === 'indexer' && task.design_document.includes(':staged:'));
+          task.type === 'indexer' &&
+          (!stagedViewsOnly || task.design_document.includes(':staged:'))
+        );
 
         return updateIndexers(relevantTasks);
       });
@@ -173,9 +174,10 @@ const warmViews = (deployDoc) => {
   const firstView = ddoc =>
     `${ddoc._id.replace('_design/', '')}/${Object.keys(ddoc.views).find(k => k !== 'lib')}`;
 
-  return utils.getStagedDdocs(true)
+  const ddocSuffix = stagedViewsOnly ? ':staged:' : '';
+  return utils.getDdocs(ddocSuffix, true)
     .then(ddocs => {
-      debug(`Got ${ddocs.length} staged ddocs`);
+      debug(`Got ${ddocs.length} ddocs to be warmed`);
       const queries = ddocs
         .filter(ddoc => ddoc.views && Object.keys(ddoc.views).length)
         .map(firstView);
@@ -233,11 +235,13 @@ const preCleanup = () => {
     });
 };
 
-const postCleanup = (ddocWrapper, deployDoc) => {
-  return Promise.all([
-        removeOldVersion(ddocWrapper),
-        clearStagedDdocs()
-      ])
+const postCleanup = (ddocWrapper, deployDoc, cleanStagedDdocs = true) => {
+  const steps = [ removeOldVersion(ddocWrapper)];
+  if (cleanStagedDdocs) {
+    steps.push(clearStagedDdocs());
+  }
+
+  return Promise.all(steps)
       .then(() => {
         debug('Delete deploy ddoc');
         deployDoc._deleted = true;
@@ -254,7 +258,7 @@ const performDeploy = (mode, deployDoc, ddoc, firstRun) => {
   return deploy.run(ddoc, firstRun);
 };
 
-const predeploySteps = (deployDoc) => {
+const stagedPredeploySteps = (deployDoc) => {
   const stage = stager(deployDoc);
 
   let ddoc;
@@ -268,10 +272,24 @@ const predeploySteps = (deployDoc) => {
     .then(() => stage('horti.stage.extractingDdocs', 'Extracting ddocs'))
     .then(() => extractDdocs(ddoc))
     .then(() => stage('horti.stage.warmingViews', 'Warming views'))
-    .then(() => warmViews(deployDoc))
+    .then(() => warmViews(deployDoc, true))
     .then(() => stage('horti.stage.readyToDeploy', 'View warming complete, ready to deploy'))
     .then(() => ddoc);
 };
+
+const unstagedPredeploySteps = (deployDoc) => {
+  // For "inPlaceDeployments", don't download or stage anything. Just warm the build that is already in place.
+  const stage = stager(deployDoc);
+  let ddoc;
+
+  return stage('horti.stage.init', `Horticulturalist unstaged deployment of '${keyFromDeployDoc(deployDoc)}' initializing`)
+    .then(() => DB.app.get(`_design/${deployDoc.build_info.application}`, { attachments: true, binary: true }))
+    .then(inPlaceDoc => ddoc = inPlaceDoc)
+    .then(() => stage('horti.stage.warmingViews', 'Warming views'))
+    .then(() => warmViews(deployDoc, false))
+    .then(() => stage('horti.stage.readyToDeploy', 'View warming complete, ready to deploy'))
+    .then(() => ddoc);
+}
 
 const deploySteps = (mode, deployDoc, firstRun, ddoc) => {
   const getApplicationDdoc = () => {
@@ -297,7 +315,7 @@ const deploySteps = (mode, deployDoc, firstRun, ddoc) => {
       return stage('horti.stage.deploying', 'Deploying new installation')
         .then(() => performDeploy(mode, deployDoc, ddoc, firstRun))
         .then(() => stage('horti.stage.postCleanup', 'Post-deploy cleanup, installation complete'))
-        .then(() => postCleanup(ddocWrapper(ddoc, mode), deployDoc));
+        .then(() => postCleanup(ddocWrapper(ddoc, mode), deployDoc, mode.stageDeployment));
     });
 };
 
@@ -312,13 +330,14 @@ module.exports = {
   install: (deployDoc, mode, firstRun) => {
     info(`Deploying new build: ${keyFromDeployDoc(deployDoc)}`);
 
-    return predeploySteps(deployDoc)
+    const steps = mode.stageDeployment ? stagedPredeploySteps : unstagedPredeploySteps;
+    return steps(deployDoc)
       .then((ddoc) => deploySteps(mode, deployDoc, firstRun, ddoc));
   },
   stage: (deployDoc) => {
     info(`Staging new build: ${keyFromDeployDoc(deployDoc)}`);
 
-    return predeploySteps(deployDoc)
+    return stagedPredeploySteps(mode, deployDoc)
       .then(() => {
         deployDoc.staging_complete = true;
 

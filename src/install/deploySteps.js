@@ -10,8 +10,8 @@ const utils = require('../utils');
 module.exports = (mode, deployDoc) => {
 
   const startApps = (mode) => {
-    info('Starting all apps…', mode.appsToStart);
-    return apps.start(mode.start)
+    info('Starting all apps…', mode.appsToDeploy);
+    return apps.start(mode.start, mode.appsToDeploy)
       .then(() => info('All apps started.'));
   };
 
@@ -126,20 +126,23 @@ module.exports = (mode, deployDoc) => {
   const processDdoc = (ddoc, firstRun) => {
     const wrappedDdoc = ddocWrapper(ddoc, mode);
     const changedApps = wrappedDdoc.getChangedApps();
-    const appsToDeploy = changedApps.length;
+
+    // deploy the intersection of changed apps and desired apps
+    const appsToDeploy = changedApps.filter(changed => mode.appsToDeploy.includes(changed.name));
+    const deployCount = appsToDeploy.length;
 
     return Promise.resolve()
       .then(() => {
-        if (appsToDeploy) {
+        if (deployCount) {
           return Promise.resolve()
-            .then(() => info(`Unzipping changed apps to ${mode.deployments}…`, changedApps))
-            .then(() => wrappedDdoc.unzipChangedApps(changedApps))
+            .then(() => info(`Unzipping changed apps to ${mode.deployments}…`, appsToDeploy))
+            .then(() => wrappedDdoc.unzipChangedApps(appsToDeploy))
             .then(() => info('Changed apps unzipped.'))
             .then(() => {
               if (mode.daemon) {
                 return Promise.resolve()
                   .then(() => info('Stopping all apps…', apps.APPS))
-                  .then(() => apps.stop(mode.stop))
+                  .then(() => apps.stop(mode.stop, mode.appsToDeploy))
                   .then(() => info('All apps stopped.'));
               }
             });
@@ -148,21 +151,21 @@ module.exports = (mode, deployDoc) => {
         }
       })
 
-      .then(() => deployStagedDdocs())
+      .then(() => mode.stageDeployment ? deployStagedDdocs() : undefined)
 
       .then(() => {
-        if (appsToDeploy) {
+        if (deployCount) {
           return Promise.resolve()
-            .then(() => info('Updating symlinks for changed apps…', changedApps))
-            .then(() => updateSymlink(changedApps))
+            .then(() => info('Updating symlinks for changed apps…', appsToDeploy))
+            .then(() => updateSymlink(appsToDeploy))
             .then(() => info('Symlinks updated.'));
         }
       })
 
       .then(() => {
-        if (mode.daemon && (appsToDeploy || firstRun)) {
+        if (mode.daemon && (deployCount || firstRun)) {
           return startApps(mode).then(() => {
-            return changedApps;
+            return appsToDeploy;
           });
         }
       });

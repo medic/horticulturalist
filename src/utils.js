@@ -47,14 +47,14 @@ const writeDocsInSeries = docs => {
     Promise.resolve());
 };
 
-// Like getStagedDdocs, but instead of doing it in one go tries to break it
+// Like getDdocs, but instead of doing it in one go tries to break it
 // up. This will be slower but less likely to cause timeouts.
-const getStagedDdocsSlower = (attachments) => {
+const getDdocsSlower = (ddocSuffix, attachments) => {
   debug('Falling back onto getting staged ddocs in a slower, safer way');
   debug('Getting list of ddocs');
   return DB.app.allDocs({
-    startkey: '_design/:staged:',
-    endkey: '_design/:staged:\ufff0'
+    startkey: `_design/${ddocSuffix}`,
+    endkey: `_design/${ddocSuffix}\ufff0`
   }).then(({rows}) => {
     const ids = rows.map(r => r.id);
 
@@ -78,10 +78,11 @@ module.exports = {
 
     return doc;
   },
-  getStagedDdocs: (includeDocs, attachments) => {
+  getStagedDdocs: (includeDocs, attachments) => module.exports.getDdocs(':staged:', includeDocs, attachments),
+  getDdocs: (ddocSuffix, includeDocs, attachments) => {
     return DB.app.allDocs({
-      startkey: '_design/:staged:',
-      endkey: '_design/:staged:\ufff0',
+      startkey: `_design/${ddocSuffix}`,
+      endkey: `_design/${ddocSuffix}\ufff0`,
       include_docs: includeDocs,
       attachments: attachments,
       binary: attachments
@@ -96,7 +97,7 @@ module.exports = {
       }
     }).catch(err => {
       if (err.error === 'timeout' && includeDocs) {
-        return getStagedDdocsSlower(attachments);
+        return getDdocsSlower(ddocSuffix, attachments);
       } else {
         throw err;
       }

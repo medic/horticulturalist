@@ -18,10 +18,9 @@ const apps = require('./apps'),
       packageUtils = require('./package');
 
 const MODES = {
-  development: {
+  dev: {
     name: 'development',
     deployments: './temp/deployments',
-    appsToStart: APPS,
     start: [ 'bin/svc-start', './temp/deployments', '{{app}}' ],
     stop: [ 'bin/svc-stop', '{{app}}' ],
     manageAppLifecycle: true,
@@ -31,7 +30,6 @@ const MODES = {
   test: {
     name: 'test',
     deployments: './test-workspace/deployments',
-    appsToStart: APPS,
     start: [ 'bin/svc-start', './test-workspace/deployments', '{{app}}' ],
     stop: [ 'bin/svc-stop', '{{app}}' ],
     manageAppLifecycle: true,
@@ -39,15 +37,13 @@ const MODES = {
   local: {
     name: 'local',
     deployments: `${os.homedir()}/.horticulturalist/deployments`,
-    appsToStart: APPS,
     start: [ 'horti-svc-start', `${os.homedir()}/.horticulturalist/deployments`, '{{app}}' ],
     stop: [ 'horti-svc-stop', '{{app}}' ],
     manageAppLifecycle: true,
   },
-  medic_os: {
+  'medic-os': {
     name: 'Medic OS',
     deployments: '/srv/software',
-    appsToStart: APPS,
     start: ['sudo', '-n', '/boot/svc-start', '{{app}}' ],
     stop: ['sudo', '-n', '/boot/svc-stop', '{{app}}' ],
     // MedicOS will start and stop apps, though we will still restart them
@@ -57,8 +53,9 @@ const MODES = {
   satellite: {
     name: 'Medic Satellite Server',
     deployments: '/srv/software',
-    appsToStart: ['medic-api'],
-    start: ['bin/svc-start', './temp/deployments', '{{app}}'],
+    appsToDeploy: ['medic-api'],
+    stageDeployment: false,
+    start: ['bin/svc-start', '/srv/software', '{{app}}'],
     stop: ['bin/svc-stop', '{{app}}'],
     manageAppLifecycle: true
   }
@@ -72,29 +69,28 @@ const argv = parseArgs(process.argv, {
   }
 });
 
-if (active(argv.dev, argv.local, argv['medic-os'], argv.test, argv.satellite).length !== 1) {
-  help.outputHelp();
-  error('You must pick one mode to run in.');
-  process.exit(-1);
-}
-
-const mode = argv.dev         ? MODES.development :
-             argv.test        ? MODES.test :
-             argv.local       ? MODES.local :
-             argv['medic-os'] ? MODES.medic_os :
-             argv.satellite   ? MODES.satellite :
-             undefined;
-
-
 if (argv.version || argv.v) {
   help.outputVersion();
   return;
 }
 
-if (!mode || argv.help || argv.h) {
+if (argv.help || argv.h) {
   help.outputHelp();
   return;
 }
+
+const selectedMode = Object.keys(MODES).find(mode => argv[mode]);
+if (!selectedMode) {
+  help.outputHelp();
+  error('You must pick one mode to run in.');
+  process.exit(-1);
+}
+
+const modeDefaults = {
+  appsToDeploy: APPS,
+  stageDeployment: true,
+};
+const mode = Object.assign(modeDefaults, MODES[selectedMode]);
 
 if (active(argv.install, argv.stage, argv['complete-install']).length > 1) {
   help.outputHelp();
@@ -121,11 +117,6 @@ if (version) {
   version = packageUtils.parse(version);
 }
 
-if (argv.satellite && action) {
-  error('Cannot force actions in satellite mode.');
-  process.exit(-1);
-}
-
 mode.daemon = argv.daemon;
 
 if (!action && !mode.daemon) {
@@ -147,7 +138,7 @@ process.on('unhandledRejection', (err) => {
 // clearing of the lockfile is handled by the lockfile library itself
 onExit((code) => {
   if (mode.manageAppLifecycle && mode.daemon) {
-    apps.stopSync(mode.stop, mode.appsToStart);
+    apps.stopSync(mode.stop, mode.appsToDeploy);
   }
 
   process.exit(code || 0);

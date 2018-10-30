@@ -12,10 +12,10 @@ const DB = require('./dbs'),
       fatality = require('./fatality');
 
 const newDeployment = deployDoc =>
-  !!deployDoc &&
-  deployDoc._id === HORTI_UPGRADE_DOC &&
-  (deployDoc.action !== ACTIONS.STAGE || !deployDoc.staging_complete);
-
+      !!deployDoc &&
+      deployDoc._id === HORTI_UPGRADE_DOC &&
+      (deployDoc.action !== ACTIONS.STAGE || !deployDoc.staging_complete);
+      
 const performDeployment = (deployDoc, mode, firstRun=false) => {
   let deployAction;
 
@@ -33,7 +33,6 @@ const performDeployment = (deployDoc, mode, firstRun=false) => {
 const watchForDeployments = (mode) => {
   info('Watching for deployments');
 
-  /* Here we should watch the attachment itself somehow? */
   const watch = DB.app.changes({
     live: true,
     since: 'now',
@@ -103,7 +102,7 @@ module.exports = {
     let bootActions = Promise.resolve();
 
     if (mode.manageAppLifecycle && mode.daemon) {
-      bootActions = bootActions.then(() => apps.start(mode.start, mode.appsToStart));
+      bootActions = bootActions.then(() => apps.start(mode.start, mode.appsToDeploy));
     }
 
     if (module.exports._newDeployment(deployDoc)) {
