@@ -6,7 +6,7 @@ const fs = require('fs-extra'),
 
 const { error, info } = require('./log');
 
-const { ACTIONS } = require('./constants');
+const { ACTIONS, APPS } = require('./constants');
 
 const apps = require('./apps'),
       bootstrap = require('./bootstrap'),
@@ -21,6 +21,7 @@ const MODES = {
   development: {
     name: 'development',
     deployments: './temp/deployments',
+    appsToStart: APPS,
     start: [ 'bin/svc-start', './temp/deployments', '{{app}}' ],
     stop: [ 'bin/svc-stop', '{{app}}' ],
     manageAppLifecycle: true,
@@ -30,6 +31,7 @@ const MODES = {
   test: {
     name: 'test',
     deployments: './test-workspace/deployments',
+    appsToStart: APPS,
     start: [ 'bin/svc-start', './test-workspace/deployments', '{{app}}' ],
     stop: [ 'bin/svc-stop', '{{app}}' ],
     manageAppLifecycle: true,
@@ -37,6 +39,7 @@ const MODES = {
   local: {
     name: 'local',
     deployments: `${os.homedir()}/.horticulturalist/deployments`,
+    appsToStart: APPS,
     start: [ 'horti-svc-start', `${os.homedir()}/.horticulturalist/deployments`, '{{app}}' ],
     stop: [ 'horti-svc-stop', '{{app}}' ],
     manageAppLifecycle: true,
@@ -44,12 +47,21 @@ const MODES = {
   medic_os: {
     name: 'Medic OS',
     deployments: '/srv/software',
+    appsToStart: APPS,
     start: ['sudo', '-n', '/boot/svc-start', '{{app}}' ],
     stop: ['sudo', '-n', '/boot/svc-stop', '{{app}}' ],
     // MedicOS will start and stop apps, though we will still restart them
     // when upgrading
     manageAppLifecycle: false,
   },
+  satellite: {
+    name: 'Medic Satellite Server',
+    deployments: '/srv/software',
+    appsToStart: ['medic-api'],
+    start: ['bin/svc-start', './temp/deployments', '{{app}}'],
+    stop: ['bin/svc-stop', '{{app}}'],
+    manageAppLifecycle: true
+  }
 };
 
 const active = (...things) => things.filter(t => !!t);
@@ -60,7 +72,7 @@ const argv = parseArgs(process.argv, {
   }
 });
 
-if (active(argv.dev, argv.local, argv['medic-os'], argv.test).length !== 1) {
+if (active(argv.dev, argv.local, argv['medic-os'], argv.test, argv.satellite).length !== 1) {
   help.outputHelp();
   error('You must pick one mode to run in.');
   process.exit(-1);
@@ -70,6 +82,7 @@ const mode = argv.dev         ? MODES.development :
              argv.test        ? MODES.test :
              argv.local       ? MODES.local :
              argv['medic-os'] ? MODES.medic_os :
+             argv.satellite   ? MODES.satellite :
              undefined;
 
 
@@ -108,6 +121,11 @@ if (version) {
   version = packageUtils.parse(version);
 }
 
+if (argv.satellite && action) {
+  error('Cannot force actions in satellite mode.');
+  process.exit(-1);
+}
+
 mode.daemon = argv.daemon;
 
 if (!action && !mode.daemon) {
@@ -129,7 +147,7 @@ process.on('unhandledRejection', (err) => {
 // clearing of the lockfile is handled by the lockfile library itself
 onExit((code) => {
   if (mode.manageAppLifecycle && mode.daemon) {
-    apps.stopSync(mode.stop);
+    apps.stopSync(mode.stop, mode.appsToStart);
   }
 
   process.exit(code || 0);

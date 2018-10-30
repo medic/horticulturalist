@@ -1,6 +1,7 @@
 module.exports = {
   LEGACY_0_8_UPGRADE_DOC: '_design/medic:staged',
   HORTI_UPGRADE_DOC: 'horti-upgrade',
+  APPS: [ 'medic-api', 'medic-sentinel' ],
   ACTIONS: {
     // A complete installation from start to finish. End result is a deleted
     // HORTI_UPGRADE_DOC and the system running on the new version.

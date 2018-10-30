@@ -10,7 +10,7 @@ const utils = require('../utils');
 module.exports = (mode, deployDoc) => {
 
   const startApps = (mode) => {
-    info('Starting all apps…', apps.APPS);
+    info('Starting all apps…', mode.appsToStart);
     return apps.start(mode.start)
       .then(() => info('All apps started.'));
   };

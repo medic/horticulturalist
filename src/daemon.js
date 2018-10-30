@@ -33,10 +33,11 @@ const performDeployment = (deployDoc, mode, firstRun=false) => {
 const watchForDeployments = (mode) => {
   info('Watching for deployments');
 
+  /* Here we should watch the attachment itself somehow? */
   const watch = DB.app.changes({
     live: true,
     since: 'now',
-    doc_ids: [ HORTI_UPGRADE_DOC, LEGACY_0_8_UPGRADE_DOC],
+    doc_ids: [ HORTI_UPGRADE_DOC, LEGACY_0_8_UPGRADE_DOC ],
     include_docs: true,
     timeout: false,
   });
@@ -61,6 +62,8 @@ const watchForDeployments = (mode) => {
       // Old builds had no schema_version. New builds should be blocked from
       // accidentally having no schema version by the builds server's
       // validate_doc_update function
+
+      /* Need to maybe do a more robust doc change here */
       if (!deployDoc.schema_version || deployDoc.schema_version === 1) {
         return module.exports._performDeployment(deployDoc, mode)
           .then(() => module.exports._watchForDeployments(mode))
@@ -100,7 +103,7 @@ module.exports = {
     let bootActions = Promise.resolve();
 
     if (mode.manageAppLifecycle && mode.daemon) {
-      bootActions = bootActions.then(() => apps.start(mode.start));
+      bootActions = bootActions.then(() => apps.start(mode.start, mode.appsToStart));
     }
 
     if (module.exports._newDeployment(deployDoc)) {

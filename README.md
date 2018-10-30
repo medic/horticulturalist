@@ -30,6 +30,9 @@ Pick one mode to run in:
     --medic-os
         Only of interest to those who deploy using MedicOS. Deploys apps using
         the MedicOS daemon.
+    --satellite
+        Only of interest to those who deploy on Medic Satellite servers. Deploy
+        blindly from CouchDB. Cannot be used with specific deploy actions.
 
 You can also specify a deployment action to perform:
 
