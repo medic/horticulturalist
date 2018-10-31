@@ -8,8 +8,8 @@ const {
   ACTIONS
 } = require('./constants');
 
-const getUpgradeDoc = () => {
-  return DB.app.get(HORTI_UPGRADE_DOC)
+const getUpgradeDoc = (upgradeDocument = HORTI_UPGRADE_DOC) => {
+  return DB.app.get(upgradeDocument)
     .catch(err => {
       if (err.status !== 404) {
         throw err;

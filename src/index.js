@@ -6,7 +6,7 @@ const fs = require('fs-extra'),
 
 const { error, info } = require('./log');
 
-const { ACTIONS, APPS } = require('./constants');
+const { ACTIONS, APPS, HORTI_UPGRADE_DOC, LEGACY_0_8_UPGRADE_DOC } = require('./constants');
 
 const apps = require('./apps'),
       bootstrap = require('./bootstrap'),
@@ -17,6 +17,12 @@ const apps = require('./apps'),
       lockfile = require('./lockfile'),
       packageUtils = require('./package');
 
+const modeDefaults = {
+  appsToDeploy: APPS,
+  stageDeployment: true,
+  upgradeDocuments: [HORTI_UPGRADE_DOC, LEGACY_0_8_UPGRADE_DOC],
+  getWritableDeployDoc: doc => doc,
+};
 const MODES = {
   dev: {
     name: 'development',
@@ -51,13 +57,22 @@ const MODES = {
     manageAppLifecycle: false,
   },
   satellite: {
-    name: 'Medic Satellite Server',
+    name: 'satellite',
     deployments: '/srv/software',
     appsToDeploy: ['medic-api'],
+    upgradeDocuments: [`_design/medic`],
     stageDeployment: false,
+
+    // unstaged deployments are triggered by the ddoc and then track their deployment progress in a new document
+    getWritableDeployDoc: doc => ({
+      _id: `satellite-${os.hostname()}-upgrade`,
+      build_info: Object.assign({}, doc.build_info),
+      schema_version: doc.schema_version,
+    }),
+
     start: ['bin/svc-start', '/srv/software', '{{app}}'],
     stop: ['bin/svc-stop', '{{app}}'],
-    manageAppLifecycle: true
+    manageAppLifecycle: true,
   }
 };
 
@@ -86,10 +101,6 @@ if (!selectedMode) {
   process.exit(-1);
 }
 
-const modeDefaults = {
-  appsToDeploy: APPS,
-  stageDeployment: true,
-};
 const mode = Object.assign(modeDefaults, MODES[selectedMode]);
 
 if (active(argv.install, argv.stage, argv['complete-install']).length > 1) {
@@ -107,6 +118,11 @@ const action = argv.install             ? ACTIONS.INSTALL :
                argv.stage               ? ACTIONS.STAGE :
                argv['complete-install'] ? ACTIONS.COMPLETE :
                undefined;
+
+if (mode.name === 'satellite' && action) {
+  error('Satellite mode cannot be used with specific actions.');
+  process.exit(-1);
+}
 
 let version = argv.install || argv.stage;
 if (version === true) {
@@ -157,7 +173,7 @@ lockfile.wait()
     } else if (action === ACTIONS.COMPLETE) {
       return bootstrap.complete();
     } else {
-      return bootstrap.existing();
+      return bootstrap.existing(mode.upgradeDocuments[0]);
     }
   }).then(deployDoc => {
       return daemon.init(deployDoc, mode);

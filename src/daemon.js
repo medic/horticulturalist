@@ -13,12 +13,12 @@ const DB = require('./dbs'),
 
 const newDeployment = deployDoc =>
       !!deployDoc &&
-      deployDoc._id === HORTI_UPGRADE_DOC &&
       (deployDoc.action !== ACTIONS.STAGE || !deployDoc.staging_complete);
-      
-const performDeployment = (deployDoc, mode, firstRun=false) => {
+
+const performDeployment = (doc, mode, firstRun=false) => {
   let deployAction;
 
+  const deployDoc = mode.getWritableDeployDoc(doc);
   if (!deployDoc.action || deployDoc.action === ACTIONS.INSTALL) {
     deployAction = install.install(deployDoc, mode, firstRun);
   } else if (deployDoc.action === ACTIONS.STAGE) {
@@ -36,7 +36,7 @@ const watchForDeployments = (mode) => {
   const watch = DB.app.changes({
     live: true,
     since: 'now',
-    doc_ids: [ HORTI_UPGRADE_DOC, LEGACY_0_8_UPGRADE_DOC ],
+    doc_ids: mode.upgradeDocuments,
     include_docs: true,
     timeout: false,
   });
@@ -48,14 +48,15 @@ const watchForDeployments = (mode) => {
   watch.on('error', fatality);
 
   watch.on('change', change => {
-    const deployDoc = change.doc;
+    const changedDoc = change.doc;
 
-    if (deployDoc._deleted) {
+    if (changedDoc._deleted) {
       return;
     }
 
-    if (module.exports._newDeployment(deployDoc)) {
-      info(`Change in ${HORTI_UPGRADE_DOC} detected`);
+    const deployDoc = mode.getWritableDeployDoc(changedDoc);
+    if (module.exports._newDeployment(changedDoc)) {
+      info(`Change in ${changedDoc._id} detected`);
       watch.cancel();
 
       // Old builds had no schema_version. New builds should be blocked from
