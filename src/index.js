@@ -17,6 +17,7 @@ const apps = require('./apps'),
       lockfile = require('./lockfile'),
       packageUtils = require('./package');
 
+const startTime = new Date().getTime();
 const modeDefaults = {
   appsToDeploy: APPS,
   stageDeployment: true,
@@ -65,7 +66,7 @@ const MODES = {
 
     // unstaged deployments are triggered by the ddoc and then track their deployment progress in a new document
     getWritableDeployDoc: doc => ({
-      _id: `satellite-${os.hostname()}-upgrade`,
+      _id: `_local/upgrade-${startTime}`,
       build_info: Object.assign({}, doc.build_info),
       schema_version: doc.schema_version,
     }),
