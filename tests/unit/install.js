@@ -186,7 +186,7 @@ describe('Installation flow', () => {
       DB.app.put.resolves({});
       DB.activeTasks.resolves([relevantIndexer, irrelevantIndexer]);
 
-      return install._warmViews(deployDoc)
+      return install._warmViews(deployDoc, true)
         .then(() => {
         DB.app.query.callCount.should.equal(2);
         DB.app.query.args[0][0].should.equal(':staged:some-views/a_view');
@@ -288,7 +288,7 @@ describe('Installation flow', () => {
         return Promise.resolve();
       });
 
-      return install._warmViews(deployDoc).then(() => {
+      return install._warmViews(deployDoc, true).then(() => {
         DB.activeTasks.callCount.should.equal(5);
         DB.app.query.callCount.should.equal(5);
         utils.update.callCount.should.equal(7);
@@ -455,7 +455,7 @@ describe('Installation flow', () => {
         return Promise.resolve();
       });
 
-      return install._warmViews(deployDoc).then(() => {
+      return install._warmViews(deployDoc, true).then(() => {
         DB.activeTasks.callCount.should.equal(6);
         DB.app.query.callCount.should.equal(3);
         deployDocs.length.should.equal(8);

@@ -151,7 +151,7 @@ module.exports = (mode, deployDoc) => {
         }
       })
 
-      .then(() => mode.stageDeployment ? deployStagedDdocs() : undefined)
+      .then(() => mode.stageDeployment ? deployStagedDdocs() : Promise.resolve())
 
       .then(() => {
         if (deployCount) {

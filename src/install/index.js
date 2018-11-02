@@ -59,7 +59,7 @@ const extractDdocs = ddoc => {
   return utils.betterBulkDocs(compiledDocs);
 };
 
-const warmViews = (deployDoc, stagedViewsOnly = true) => {
+const warmViews = (deployDoc, stagedViewsOnly) => {
   let viewsWarmed = false;
   const writeProgress = () => {
     return DB.activeTasks()
@@ -235,9 +235,9 @@ const preCleanup = () => {
     });
 };
 
-const postCleanup = (ddocWrapper, deployDoc, cleanStagedDdocs = true) => {
+const postCleanup = (ddocWrapper, deployDoc, clearStagedDdocs = true) => {
   const steps = [ removeOldVersion(ddocWrapper)];
-  if (cleanStagedDdocs) {
+  if (clearStagedDdocs) {
     steps.push(clearStagedDdocs());
   }
 

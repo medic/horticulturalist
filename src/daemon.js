@@ -7,6 +7,8 @@ const {
   ACTIONS
 } = require('./constants');
 
+const startTime = new Date().getTime();
+
 const DB = require('./dbs'),
       install = require('./install'),
       fatality = require('./fatality');
@@ -18,7 +20,13 @@ const newDeployment = deployDoc =>
 const performDeployment = (doc, mode, firstRun=false) => {
   let deployAction;
 
-  const deployDoc = mode.getWritableDeployDoc(doc);
+  const getWritableDeployDoc = doc => ({
+    _id: `_local/upgrade-${startTime}`,
+    build_info: Object.assign({}, doc.build_info),
+    schema_version: doc.schema_version,
+  });
+
+  const deployDoc = mode.writeLocalDeployLog ? getWritableDeployDoc(doc) : doc;
   if (!deployDoc.action || deployDoc.action === ACTIONS.INSTALL) {
     deployAction = install.install(deployDoc, mode, firstRun);
   } else if (deployDoc.action === ACTIONS.STAGE) {
@@ -63,7 +71,6 @@ const watchForDeployments = (mode) => {
       // accidentally having no schema version by the builds server's
       // validate_doc_update function
 
-      /* Need to maybe do a more robust doc change here */
       if (!deployDoc.schema_version || deployDoc.schema_version === 1) {
         return module.exports._performDeployment(deployDoc, mode)
           .then(() => module.exports._watchForDeployments(mode))

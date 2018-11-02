@@ -17,12 +17,11 @@ const apps = require('./apps'),
       lockfile = require('./lockfile'),
       packageUtils = require('./package');
 
-const startTime = new Date().getTime();
 const modeDefaults = {
   appsToDeploy: APPS,
   stageDeployment: true,
   upgradeDocuments: [HORTI_UPGRADE_DOC, LEGACY_0_8_UPGRADE_DOC],
-  getWritableDeployDoc: doc => doc,
+  writeLocalDeployLog: false,
 };
 const MODES = {
   dev: {
@@ -63,14 +62,7 @@ const MODES = {
     appsToDeploy: ['medic-api'],
     upgradeDocuments: [`_design/medic`],
     stageDeployment: false,
-
-    // unstaged deployments are triggered by the ddoc and then track their deployment progress in a new document
-    getWritableDeployDoc: doc => ({
-      _id: `_local/upgrade-${startTime}`,
-      build_info: Object.assign({}, doc.build_info),
-      schema_version: doc.schema_version,
-    }),
-
+    writeLocalDeployLog: true,
     start: ['bin/svc-start', '/srv/software', '{{app}}'],
     stop: ['bin/svc-stop', '{{app}}'],
     manageAppLifecycle: true,
@@ -120,7 +112,7 @@ const action = argv.install             ? ACTIONS.INSTALL :
                argv['complete-install'] ? ACTIONS.COMPLETE :
                undefined;
 
-if (mode.name === 'satellite' && action) {
+if (selectedMode === 'satellite' && action) {
   error('Satellite mode cannot be used with specific actions.');
   process.exit(-1);
 }
