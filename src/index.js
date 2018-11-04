@@ -77,16 +77,6 @@ const argv = parseArgs(process.argv, {
   }
 });
 
-if (argv.version || argv.v) {
-  help.outputVersion();
-  return;
-}
-
-if (argv.help || argv.h) {
-  help.outputHelp();
-  return;
-}
-
 const selectedMode = Object.keys(MODES).find(mode => argv[mode]);
 if (!selectedMode) {
   help.outputHelp();
@@ -95,6 +85,16 @@ if (!selectedMode) {
 }
 
 const mode = Object.assign(modeDefaults, MODES[selectedMode]);
+
+if (argv.version || argv.v) {
+  help.outputVersion();
+  return;
+}
+
+if (!mode || argv.help || argv.h) {
+  help.outputHelp();
+  return;
+}
 
 if (active(argv.install, argv.stage, argv['complete-install']).length > 1) {
   help.outputHelp();
