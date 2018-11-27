@@ -33,23 +33,23 @@ describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
 
   it('should --install two upgrades without error', () => {
     return hortiUtils
-      .start([ '--install=medic:medic:3.0.x', '--test' ], waitCondition)
+      .start([ '--install=medic:medic:3.0.0', '--test' ], waitCondition)
       .then(horti => horti.kill())
-      .then(() => hortiUtils.start([ '--install=medic:medic:3.1.x', '--test' ], waitCondition))
+      .then(() => hortiUtils.start([ '--install=medic:medic:3.1.0', '--test' ], waitCondition))
       .then(horti => horti.kill());
   });
 
   it('should support --install-ing previously installed build', () => {
-    const ddocs = {};
+    const buildDocs = {};
 
     const checkBuildApps = build => {
       assert.equal(
         hortiUtils.getCurrentAppDir('medic-api'),
-        hortiUtils.getDDocAppDigest('medic-api', ddocs[build])
+        hortiUtils.getDDocAppDigest('medic-api', buildDocs[build])
       );
       assert.equal(
         hortiUtils.getCurrentAppDir('medic-sentinel'),
-        hortiUtils.getDDocAppDigest('medic-sentinel', ddocs[build])
+        hortiUtils.getDDocAppDigest('medic-sentinel', buildDocs[build])
       );
 
       assert.equal(hortiUtils.oldAppLinkExists('medic-api'), false);
@@ -57,30 +57,30 @@ describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
     };
 
     return request({
-        url: PROD_BUILD_URL + '/_all_docs?keys=["medic:medic:3.0.x","medic:medic:3.1.x"]&include_docs=true',
+        url: PROD_BUILD_URL + '/_all_docs?keys=["medic:medic:3.0.0","medic:medic:3.1.0"]&include_docs=true',
         json: true
       })
       .then(results => {
-        results.rows.forEach(row => ddocs[row.id] = row.doc);
-        return hortiUtils.start([ '--install=medic:medic:3.0.x', '--test' ], waitCondition);
+        results.rows.forEach(row => buildDocs[row.id] = row.doc);
+        return hortiUtils.start([ '--install=medic:medic:3.0.0', '--test' ], waitCondition);
       })
       .then(horti => {
-        checkBuildApps('medic:medic:3.0.x');
+        checkBuildApps('medic:medic:3.0.0');
         horti.kill();
       })
-      .then(() => hortiUtils.start([ '--install=medic:medic:3.1.x', '--test' ], waitCondition))
+      .then(() => hortiUtils.start([ '--install=medic:medic:3.1.0', '--test' ], waitCondition))
       .then(horti => {
-        checkBuildApps('medic:medic:3.1.x');
+        checkBuildApps('medic:medic:3.1.0');
         horti.kill();
       })
-      .then(() => hortiUtils.start([ '--install=medic:medic:3.0.x', '--test' ], waitCondition))
+      .then(() => hortiUtils.start([ '--install=medic:medic:3.0.0', '--test' ], waitCondition))
       .then(horti => {
-        checkBuildApps('medic:medic:3.0.x');
+        checkBuildApps('medic:medic:3.0.0');
         horti.kill();
       })
-      .then(() => hortiUtils.start([ '--install=medic:medic:3.0.x', '--test' ], waitCondition))
+      .then(() => hortiUtils.start([ '--install=medic:medic:3.0.0', '--test' ], waitCondition))
       .then(horti => {
-        checkBuildApps('medic:medic:3.0.x');
+        checkBuildApps('medic:medic:3.0.0');
         horti.kill();
       });
   });
