@@ -1,6 +1,7 @@
 const fs = require('fs-extra'),
       { promisify } = require('util'),
-      { spawn } = require('child_process');
+      { spawn } = require('child_process'),
+      path = require('path');
 
 const { APP_URL, API_PORT, BUILDS_URL } = require('./constants');
 
@@ -59,5 +60,12 @@ module.exports = {
       });
     });
   },
-  cleanWorkingDir: () => promisify(fs.remove)('./test-workspace')
+  cleanWorkingDir: () => promisify(fs.remove)('./test-workspace'),
+  getCurrentAppDir: (app) => {
+    return promisify(fs.realpath)(`./test-workspace/deployments/${app}/current`).then(path.basename);
+  },
+  getDDocAppDigest: (app, ddoc) => {
+    const attName = Object.keys(ddoc._attachments).find(attachment => attachment.indexOf(app) === 0);
+    return attName && ddoc._attachments[attName].digest.replace(/\//g, '');
+  }
 };
