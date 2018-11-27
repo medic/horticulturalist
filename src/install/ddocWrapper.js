@@ -56,6 +56,7 @@ module.exports = (ddoc, mode) => {
     ddoc: ddoc,
     mode: mode,
     getChangedApps: () => getChangedApps(),
-    unzipChangedApps: (apps) => unzipChangedApps(apps)
+    unzipChangedApps: (apps) => unzipChangedApps(apps),
+    getApps: () => getApps()
   };
 };
