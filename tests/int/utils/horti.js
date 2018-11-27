@@ -61,9 +61,8 @@ module.exports = {
     });
   },
   cleanWorkingDir: () => promisify(fs.remove)('./test-workspace'),
-  getCurrentAppDir: (app) => {
-    return promisify(fs.realpath)(`./test-workspace/deployments/${app}/current`).then(path.basename);
-  },
+  getCurrentAppDir: (app) => path.basename(fs.realpathSync(`./test-workspace/deployments/${app}/current`)),
+  oldAppLinkExists: (app) => fs.existsSync(`./test-workspace/deployments/${app}/old`),
   getDDocAppDigest: (app, ddoc) => {
     const attName = Object.keys(ddoc._attachments).find(attachment => attachment.indexOf(app) === 0);
     return attName && ddoc._attachments[attName].digest.replace(/\//g, '');

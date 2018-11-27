@@ -42,6 +42,20 @@ describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
   it('should support --install-ing previously installed build', () => {
     const ddocs = {};
 
+    const checkBuildApps = build => {
+      assert.equal(
+        hortiUtils.getCurrentAppDir('medic-api'),
+        hortiUtils.getDDocAppDigest('medic-api', ddocs[build])
+      );
+      assert.equal(
+        hortiUtils.getCurrentAppDir('medic-sentinel'),
+        hortiUtils.getDDocAppDigest('medic-sentinel', ddocs[build])
+      );
+
+      assert.equal(hortiUtils.oldAppLinkExists('medic-api'), false);
+      assert.equal(hortiUtils.oldAppLinkExists('medic-sentinel'), false);
+    };
+
     return request({
         url: PROD_BUILD_URL + '/_all_docs?keys=["medic:medic:3.0.x","medic:medic:3.1.x"]&include_docs=true',
         json: true
@@ -51,42 +65,23 @@ describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
         return hortiUtils.start([ '--install=medic:medic:3.0.x', '--test' ], waitCondition);
       })
       .then(horti => {
-        return Promise
-          .all([
-            hortiUtils.getCurrentAppDir('medic-api'),
-            hortiUtils.getCurrentAppDir('medic-sentinel'),
-          ])
-          .then(folders => {
-            assert.equal(folders[0], hortiUtils.getDDocAppDigest('medic-api', ddocs['medic:medic:3.0.x']));
-            assert.equal(folders[1], hortiUtils.getDDocAppDigest('medic-sentinel', ddocs['medic:medic:3.0.x']));
-            horti.kill();
-          });
+        checkBuildApps('medic:medic:3.0.x');
+        horti.kill();
       })
       .then(() => hortiUtils.start([ '--install=medic:medic:3.1.x', '--test' ], waitCondition))
       .then(horti => {
-        return Promise
-          .all([
-            hortiUtils.getCurrentAppDir('medic-api'),
-            hortiUtils.getCurrentAppDir('medic-sentinel'),
-          ])
-          .then(folders => {
-            assert.equal(folders[0], hortiUtils.getDDocAppDigest('medic-api', ddocs['medic:medic:3.1.x']));
-            assert.equal(folders[1], hortiUtils.getDDocAppDigest('medic-sentinel', ddocs['medic:medic:3.1.x']));
-            horti.kill();
-          });
+        checkBuildApps('medic:medic:3.1.x');
+        horti.kill();
       })
       .then(() => hortiUtils.start([ '--install=medic:medic:3.0.x', '--test' ], waitCondition))
       .then(horti => {
-        return Promise
-          .all([
-            hortiUtils.getCurrentAppDir('medic-api'),
-            hortiUtils.getCurrentAppDir('medic-sentinel'),
-          ])
-          .then(folders => {
-            assert.equal(folders[0], hortiUtils.getDDocAppDigest('medic-api', ddocs['medic:medic:3.0.x']));
-            assert.equal(folders[1], hortiUtils.getDDocAppDigest('medic-sentinel', ddocs['medic:medic:3.0.x']));
-            horti.kill();
-          });
+        checkBuildApps('medic:medic:3.0.x');
+        horti.kill();
+      })
+      .then(() => hortiUtils.start([ '--install=medic:medic:3.0.x', '--test' ], waitCondition))
+      .then(horti => {
+        checkBuildApps('medic:medic:3.0.x');
+        horti.kill();
       });
   });
 
