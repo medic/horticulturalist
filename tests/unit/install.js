@@ -711,12 +711,19 @@ describe('Installation flow', () => {
   describe('Post cleanup', () => {
     const ddoc = ddocWrapper(null, {});
 
+    beforeEach(() => {
+      sinon.stub(fs, 'existsSync');
+      sinon.stub(fs, 'readlinkSync');
+      sinon.stub(fs, 'removeSync');
+      sinon.stub(fs, 'unlinkSync');
+    });
+
     it('deletes docs used in deploy', () => {
       DB.app.put.resolves();
       DB.app.allDocs.resolves({rows: [{id: 'foo', value: {rev: '1-bar'}}]});
       DB.app.bulkDocs.resolves([]);
       DB.app.viewCleanup.resolves();
-      sinon.stub(ddoc, 'getChangedApps').returns([]);
+      sinon.stub(ddoc, 'getApps').returns([]);
 
       return install._postCleanup(ddoc, deployDoc)
         .then(() => {
@@ -731,7 +738,52 @@ describe('Installation flow', () => {
             _deleted: true
           }]);
           DB.app.viewCleanup.callCount.should.equal(1);
-          ddoc.getChangedApps.callCount.should.equal(1);
+          ddoc.getApps.callCount.should.equal(1);
+        });
+    });
+
+    it('should delete old apps', () => {
+      DB.app.put.resolves();
+      DB.app.allDocs.resolves({rows: [{id: 'foo', value: {rev: '1-bar'}}]});
+      DB.app.bulkDocs.resolves([]);
+      DB.app.viewCleanup.resolves();
+      const app1 = { deployPath: sinon.stub().callsFake(path => `${path}-1-path`) },
+            app2 = { deployPath: sinon.stub().callsFake(path => `${path}-2-path`) },
+            app3 = { deployPath: sinon.stub().callsFake(path => `${path}-3-path`) };
+      sinon.stub(ddoc, 'getApps').returns([app1, app2, app3]);
+
+      fs.existsSync
+        .withArgs('old-1-path').returns(true)
+        .withArgs('old-2-path').returns(true)
+        .withArgs('old-3-path').returns(false)
+        .withArgs('prev-1-path').returns(true)
+        .withArgs('prev-2-path').returns(false);
+
+      fs.readlinkSync
+        .withArgs('old-1-path').returns('prev-1-path')
+        .withArgs('old-2-path').returns('prev-2-path');
+
+      return install
+        ._postCleanup(ddoc, deployDoc)
+        .then(() => {
+          ddoc.getApps.callCount.should.equal(1);
+          app1.deployPath.callCount.should.equal(1);
+          fs.existsSync.withArgs('old-1-path').callCount.should.equal(1);
+          fs.readlinkSync.withArgs('old-1-path').callCount.should.equal(1);
+          fs.existsSync.withArgs('prev-1-path').callCount.should.equal(1);
+          fs.removeSync.withArgs('prev-1-path').callCount.should.equal(1);
+          fs.unlinkSync.withArgs('old-1-path').callCount.should.equal(1);
+
+          app2.deployPath.callCount.should.equal(1);
+          fs.existsSync.withArgs('old-2-path').callCount.should.equal(1);
+          fs.readlinkSync.withArgs('old-2-path').callCount.should.equal(1);
+          fs.existsSync.withArgs('prev-2-path').callCount.should.equal(1);
+          fs.removeSync.withArgs('prev-2-path').callCount.should.equal(0);
+          fs.unlinkSync.withArgs('old-2-path').callCount.should.equal(1);
+
+          app3.deployPath.callCount.should.equal(1);
+          fs.existsSync.withArgs('old-3-path').callCount.should.equal(1);
+          fs.readlinkSync.withArgs('old-3-path').callCount.should.equal(0);
         });
     });
   });

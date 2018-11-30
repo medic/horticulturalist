@@ -207,7 +207,7 @@ const clearStagedDdocs = () => {
 };
 
 const removeOldVersion = ddoc => {
-  return Promise.all(ddoc.getChangedApps().map(app => {
+  return Promise.all(ddoc.getApps().map(app => {
     const oldPath = app.deployPath('old');
 
     if(fs.existsSync(oldPath)) {

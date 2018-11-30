@@ -15,19 +15,25 @@ module.exports = (ddoc, mode) => {
 
   const appNotAlreadyUnzipped = app => !fs.existsSync(app.deployPath());
 
-  const getChangedApps = () => {
-    let changedApps = [];
+  const getApps = () => {
     if (ddoc.node_modules) {
       // Legacy Kanso data location
-      changedApps = ddoc.node_modules
-              .split(',')
-              .map(module => moduleToApp(module));
-    } else if (ddoc.build_info) {
-      // New horticulturalist layout
-      changedApps = ddoc.build_info.node_modules
-              .map(module => moduleToApp(module));
+      return ddoc.node_modules
+        .split(',')
+        .map(module => moduleToApp(module));
     }
 
+    if (ddoc.build_info) {
+      // New horticulturalist layout
+      return ddoc.build_info.node_modules
+        .map(module => moduleToApp(module));
+    }
+
+    return [];
+  };
+
+  const getChangedApps = () => {
+    let changedApps = getApps();
     debug(`Found ${JSON.stringify(changedApps)}`);
     changedApps = changedApps.filter(appNotAlreadyUnzipped);
     debug(`Apps that aren't unzipped: ${JSON.stringify(changedApps)}`);
@@ -50,6 +56,7 @@ module.exports = (ddoc, mode) => {
     ddoc: ddoc,
     mode: mode,
     getChangedApps: () => getChangedApps(),
-    unzipChangedApps: (apps) => unzipChangedApps(apps)
+    unzipChangedApps: (apps) => unzipChangedApps(apps),
+    getApps: () => getApps()
   };
 };
