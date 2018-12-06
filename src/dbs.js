@@ -5,7 +5,8 @@ const PouchDB = require('pouchdb-core');
 PouchDB.plugin(require('pouchdb-adapter-http'));
 PouchDB.plugin(require('pouchdb-mapreduce'));
 
-const { info } = require('./log');
+const { info, error } = require('./log'),
+      help = require('./help');
 
 const DEFAULT_BUILDS_URL = 'https://staging.dev.medicmobile.org/_couch/builds';
 const BUILDS_URL = process.env.HORTI_BUILDS_SERVER || DEFAULT_BUILDS_URL;
@@ -20,7 +21,15 @@ if (process.env.TESTING) {
     builds: {},
   };
 } else {
-  const COUCH_URL = new URL(process.env.COUCH_URL);
+  let COUCH_URL;
+  try {
+    COUCH_URL = new URL(process.env.COUCH_URL);
+  } catch (err) {
+    help.outputHelp();
+    error('You must define the COUCH_URL environment variable, pointing to the DB you wish to deploy into');
+    process.exit(-1);
+  }
+
   COUCH_URL.pathname = '/';
 
   const activeTasks = () => {

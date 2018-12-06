@@ -60,27 +60,26 @@ const argv = parseArgs(process.argv, {
   }
 });
 
-if (active(argv.dev, argv.local, argv['medic-os'], argv.test).length !== 1) {
-  help.outputHelp();
-  error('You must pick one mode to run in.');
-  process.exit(-1);
-}
-
 const mode = argv.dev         ? MODES.development :
              argv.test        ? MODES.test :
              argv.local       ? MODES.local :
              argv['medic-os'] ? MODES.medic_os :
              undefined;
 
-
 if (argv.version || argv.v) {
   help.outputVersion();
   return;
 }
 
-if (!mode || argv.help || argv.h) {
+if (argv.help || argv.h) {
   help.outputHelp();
   return;
+}
+
+if (active(argv.dev, argv.local, argv['medic-os'], argv.test).length !== 1) {
+  help.outputHelp();
+  error('You must pick one mode to run in.');
+  process.exit(-1);
 }
 
 if (active(argv.install, argv.stage, argv['complete-install']).length > 1) {
