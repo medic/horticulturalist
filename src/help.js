@@ -1,7 +1,7 @@
 const fs = require('fs'),
       path = require('path');
 
-const {info} = require('log');
+const {info} = require('./log');
 
 const pluckOptionsFromReadme = () => {
   const readmePath = path.join(__dirname, '..', 'README.md');
