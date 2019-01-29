@@ -1,9 +1,9 @@
 Horticulturalist
 ================
 
-Deploys and manages [Medic](github.com/medic/medic-webapp).
+Deploys and manages [Medic](https://github.com/medic/medic).
 
-For more detailed documentation on how to start Medic using Horticulturalist, [see this guide](https://github.com/medic/medic-webapp#deploy-locally-using-horticulturalist-beta).
+For more detailed documentation on how to start Medic using Horticulturalist, [see this guide](https://github.com/medic/medic#deploy-locally-using-horticulturalist-beta).
 
 # Usage
 
@@ -60,10 +60,6 @@ The full format contains both the namespace and application name of what you wis
 Similarly, if you wish to specific a certain type (e.g. `@release`), the full format would be `@foo:bar:release`.
 
 The Medic-only formatting may go away at some point, it's just convenient for now!
-
-# Development
-
-Most development is managed in [the horticulturalist tag in medic/medic-webapp](https://github.com/medic/medic-webapp/issues?q=is%3Aopen+is%3Aissue+label%3Ahorticulturalist).
 
 ## Releasing
 

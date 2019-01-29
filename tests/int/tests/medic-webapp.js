@@ -17,7 +17,7 @@ describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
   // and so can be very slow.
   this.timeout(5 * 60 * 1000);
 
-  before(() => {
+  beforeEach(() => {
     return dbUtils.initAppsDB()
       .then(() => hortiUtils.cleanWorkingDir());
   });
@@ -64,6 +64,7 @@ describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
         results.rows.forEach(row => buildDocs[row.id] = row.doc);
         return hortiUtils.start([ '--install=medic:medic:3.0.0', '--test' ], waitCondition);
       })
+      // First setup an old version and then an upgrade to a later one
       .then(horti => {
         checkBuildApps('medic:medic:3.0.0');
         horti.kill();
@@ -73,11 +74,13 @@ describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
         checkBuildApps('medic:medic:3.1.0');
         horti.kill();
       })
+      // Then make sure reverting to an existing old version works
       .then(() => hortiUtils.start([ '--install=medic:medic:3.0.0', '--test' ], waitCondition))
       .then(horti => {
         checkBuildApps('medic:medic:3.0.0');
         horti.kill();
       })
+      // Then make sure attempting to install the same version on top of each otehr works
       .then(() => hortiUtils.start([ '--install=medic:medic:3.0.0', '--test' ], waitCondition))
       .then(horti => {
         checkBuildApps('medic:medic:3.0.0');
@@ -86,13 +89,9 @@ describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
   });
 
   it('should start the daemon with no install without error', () => {
-    return hortiUtils.start([
-      '--test'
-    ], {
-      waitUntil: /Medic API listening/,
-      log: true
-    }).then(horti => {
-      horti.kill();
-    });
+    return hortiUtils.start([ '--install=medic:medic:master', '--test'], waitCondition)
+      .then(horti => horti.kill())
+      .then(() => hortiUtils.start(['--test'], { waitUntil: /Medic API listening/, log: true}))
+      .then(horti => horti.kill());
   });
 });
