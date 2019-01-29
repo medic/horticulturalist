@@ -121,7 +121,7 @@ if(lockfile.exists()) {
 
 process.on('uncaughtException', fatality);
 process.on('unhandledRejection', (err) => {
-  console.error(err);
+  error(err);
   fatality('Unhandled rejection, please raise this as a bug!');
 });
 

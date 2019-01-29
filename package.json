@@ -12,8 +12,9 @@
   },
   "scripts": {
     "start": "node src/index.js --dev",
-    "test": "npm run unit-tests && npm run int-tests",
-    "unit-tests": "jshint src/ tests/ && TESTING=1 mocha ./tests/unit/**.js",
+    "eslint": "eslint src/ tests/",
+    "test": "npm run eslint && npm run unit-tests && npm run int-tests",
+    "unit-tests": "TESTING=1 mocha ./tests/unit/**.js",
     "int-tests": "mocha --full-trace -s 10000 -t 65536 ./tests/int/tests/**.js"
   },
   "dependencies": {
@@ -32,7 +33,7 @@
   "devDependencies": {
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
-    "jshint": "^2.9.6",
+    "eslint": "^5.12.1",
     "medic-builds-repo": "^0.3.0",
     "mocha": "^5.2.0",
     "sinon": "4.0.1"
