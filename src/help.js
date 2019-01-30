@@ -1,9 +1,11 @@
 const fs = require('fs'),
       path = require('path');
 
+const {info} = require('./log');
+
 const pluckOptionsFromReadme = () => {
   const readmePath = path.join(__dirname, '..', 'README.md');
-  let readmeString = fs.readFileSync(readmePath, 'utf8');
+  let readmeString = "\n" + fs.readFileSync(readmePath, 'utf8');
 
   // Everything before options
   readmeString = readmeString.replace(/[\s\S]*# Options/, '# Options');
@@ -16,11 +18,10 @@ const pluckOptionsFromReadme = () => {
 module.exports = {
   outputVersion: () => {
     const package = require('../package');
-    console.log(`Horticulturalist ${package.version}`);
+    info(`Horticulturalist ${package.version}`);
   },
   outputHelp: () => {
     module.exports.outputVersion();
-    console.log();
-    console.log(pluckOptionsFromReadme());
+    info(pluckOptionsFromReadme());
   }
 };
