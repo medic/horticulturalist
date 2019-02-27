@@ -1,4 +1,7 @@
-require('chai').should();
+const chai = require("chai");
+const chaiAsPromised = require("chai-as-promised");
+chai.use(chaiAsPromised);
+chai.should();
 
 const sinon = require('sinon').sandbox.create();
 const DB = require('../../src/dbs');
@@ -11,7 +14,7 @@ const install = require('../../src/install'),
 let clock;
 
 describe('Installation flow', () => {
-  const deployDoc = {
+  const deployDoc = () => ({
     _id: 'horti-upgrade',
     user: 'admin',
     build_info: {
@@ -20,7 +23,7 @@ describe('Installation flow', () => {
       version: '1.0.0'
     },
     log: []
-  };
+  });
 
   afterEach(() => {
     sinon.restore();
@@ -62,7 +65,7 @@ describe('Installation flow', () => {
       });
       DB.app.put.resolves({rev: '1-somerev'});
 
-      return install._downloadBuild(deployDoc)
+      return install._downloadBuild(deployDoc())
         .then(() => {
           DB.builds.get.callCount.should.equal(1);
           DB.app.put.callCount.should.equal(1);
@@ -186,7 +189,7 @@ describe('Installation flow', () => {
       DB.app.put.resolves({});
       DB.activeTasks.resolves([relevantIndexer, irrelevantIndexer]);
 
-      return install._warmViews(deployDoc)
+      return install._warmViews(deployDoc())
         .then(() => {
         DB.app.query.callCount.should.equal(2);
         DB.app.query.args[0][0].should.equal(':staged:some-views/a_view');
@@ -282,19 +285,19 @@ describe('Installation flow', () => {
       indexers.forEach((indexer, key) => {
         DB.activeTasks.onCall(key).resolves(indexer);
       });
-      deployDoc.log = [];
       sinon.stub(utils, 'update').callsFake(doc => {
         deployDocs.push(JSON.parse(JSON.stringify(doc)));
         return Promise.resolve();
       });
 
-      return install._warmViews(deployDoc).then(() => {
+      let _deployDoc = deployDoc();
+      return install._warmViews(_deployDoc).then(() => {
         DB.activeTasks.callCount.should.equal(5);
         DB.app.query.callCount.should.equal(5);
         utils.update.callCount.should.equal(7);
 
-        deployDoc.log.length.should.equal(1);
-        deployDoc.log[0].indexers.should.deep.equal([
+        _deployDoc.log.length.should.equal(1);
+        _deployDoc.log[0].indexers.should.deep.equal([
           {
             design_document: ':staged:ddoc1',
             progress: 100,
@@ -448,14 +451,13 @@ describe('Installation flow', () => {
       indexers.forEach((indexer, key) => {
         DB.activeTasks.onCall(key).resolves(indexer);
       });
-      deployDoc.log = [];
       const deployDocs = [];
       sinon.stub(utils, 'update').callsFake(doc => {
         deployDocs.push(JSON.parse(JSON.stringify(doc)));
         return Promise.resolve();
       });
 
-      return install._warmViews(deployDoc).then(() => {
+      return install._warmViews(deployDoc()).then(() => {
         DB.activeTasks.callCount.should.equal(6);
         DB.app.query.callCount.should.equal(3);
         deployDocs.length.should.equal(8);
@@ -469,11 +471,55 @@ describe('Installation flow', () => {
         deployDocs[7].log[0].indexers[0].progress.should.equal(100);
       });
     });
+
+    it('should ignore errors from the view warming loop', () => {
+      DB.app.allDocs.resolves({ rows: [
+        { doc: {
+          _id: '_design/:staged:some-views',
+          views: {
+            a_view: 'the map etc'
+          }
+        }}
+      ]});
+      DB.app.query.onCall(0).rejects(new Error('This error should not crash view warming'));
+      DB.app.query.onCall(1).resolves();
+      DB.app.put.resolves({});
+      DB.activeTasks.resolves([]);
+
+      return install._warmViews(deployDoc())
+        .then(() => {
+          DB.app.query.callCount.should.equal(2);
+
+          DB.app.put.callCount.should.equal(2);
+
+          let lastWriteLog = DB.app.put.args[1][0].log.pop();
+          lastWriteLog.type.should.equal('warm_log');
+      });
+    });
+    it('should NOT ignore errors from the query active tasks loop', () => {
+      DB.app.query.onCall(0).rejects(new Error('This error should not crash view warming'));
+      DB.app.query.onCall(1).callsFake(() => {
+        clock.tick(10001);
+        return Promise.resolve();
+      });
+      DB.app.allDocs.resolves({ rows: [
+        { doc: {
+          _id: '_design/:staged:some-views',
+          views: {
+            a_view: 'the map etc'
+          }
+        }}
+      ]});
+      DB.app.put.resolves({});
+      DB.activeTasks.rejects(new Error('This error should crash view warming'));
+
+      return install._warmViews(deployDoc()).should.be.rejectedWith('should crash');
+    });
   });
 
   describe('Deploy steps', () => {
     describe('Deploy staged ddocs', () => {
-      const steps = deploySteps(null, deployDoc);
+      const steps = deploySteps(null, deployDoc());
 
       const primaryDdoc = {_id: '_design/:staged:medic', _rev: '1-medic', staged: true};
       const secondaryDdocs = [
@@ -584,7 +630,7 @@ describe('Installation flow', () => {
         sinon.stub(fs, 'unlinkSync');
         sinon.stub(fs, 'symlinkSync');
 
-        steps = deploySteps(null, deployDoc);
+        steps = deploySteps(null, deployDoc());
         deployPathStub = sinon.stub().callsFake((app, pathParam) => ['path', app, pathParam].join('/'));
       });
 
@@ -725,7 +771,7 @@ describe('Installation flow', () => {
       DB.app.viewCleanup.resolves();
       sinon.stub(ddoc, 'getApps').returns([]);
 
-      return install._postCleanup(ddoc, deployDoc)
+      return install._postCleanup(ddoc, deployDoc())
         .then(() => {
           DB.app.put.callCount.should.equal(1);
           DB.app.put.args[0][0]._id.should.equal('horti-upgrade');
@@ -764,7 +810,7 @@ describe('Installation flow', () => {
         .withArgs('old-2-path').returns('prev-2-path');
 
       return install
-        ._postCleanup(ddoc, deployDoc)
+        ._postCleanup(ddoc, deployDoc())
         .then(() => {
           ddoc.getApps.callCount.should.equal(1);
           app1.deployPath.callCount.should.equal(1);

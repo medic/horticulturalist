@@ -5,8 +5,6 @@ const { debug, info } = require('../log'),
 const ACTIVE_TASK_QUERY_INTERVAL = 10 * 1000; // 10 seconds
 
 module.exports = (deployDoc) => {
-  let viewsWarmed = false;
-
   const writeProgress = () => {
     return DB.activeTasks()
       .then(tasks => {
@@ -88,27 +86,38 @@ module.exports = (deployDoc) => {
     });
   };
 
-  // Query _active_tasks every 10 seconds until `viewsWarmed` is true
-  const writeProgressTimeout = () => {
+  let stopViewWarming = false;
+
+  // Query _active_tasks every ACTIVE_TASK_QUERY_INTERVAL seconds until `stopViewWarming` is true
+  const writeProgressTimeout = (rej) => {
     setTimeout(() => {
-      if (viewsWarmed) {
+      if (stopViewWarming) {
         return;
       }
-      writeProgress().then(writeProgressTimeout);
+      writeProgress()
+        .then(writeProgressTimeout)
+        .catch(rej);
     }, ACTIVE_TASK_QUERY_INTERVAL);
   };
 
   const probeViews = viewlist => {
+    if (stopViewWarming) {
+      return;
+    }
+
     return Promise
       .all(viewlist.map(view => DB.app.query(view, { limit: 1 })))
       .then(() => {
-        viewsWarmed = true;
+        stopViewWarming = true;
         info('Warming views complete');
         return updateIndexers();
       })
       .catch(err => {
         if (err.error !== 'timeout') {
-          throw err;
+          // Ignore errors in the view warming loop because long-running view queries aren't that
+          // trust-worthy. We *do* check for errors in the writeProgressTimeout loop, so that will
+          // catch real CouchDB errors
+          info(`Unexpected error while warming: (${err.message}), continuing`);
         }
 
         return probeViews(viewlist);
@@ -133,8 +142,24 @@ module.exports = (deployDoc) => {
 
       return utils.update(deployDoc)
         .then(() => {
-          writeProgressTimeout();
-          return probeViews(queries);
+          return new Promise((res, rej) => {
+            writeProgressTimeout(rej);
+            probeViews(queries)
+              .then(() => undefined)
+              .catch(err => err)
+              .then(err => {
+                // Manually implementing something similar to a `finally` block
+                // If you read this and our minumum Node version is now > 10.3
+                // then refactor away
+                stopViewWarming = true;
+
+                if (err) {
+                  rej(err);
+                } else {
+                  res();
+                }
+              });
+          });
         });
     });
 };
