@@ -1,5 +1,5 @@
 const should = require('chai').should();
-const sinon = require('sinon').sandbox.create();
+const sinon = require('sinon');
 
 const DB = require('../../src/dbs'),
       install = require('../../src/install');

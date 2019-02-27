@@ -102,18 +102,34 @@ module.exports = {
       }
     });
   },
-  appendDeployLog: (deployDoc, message, type='stage') => {
+  readyStage: (deployDoc, key, message) => {
     if (!deployDoc.log) {
       deployDoc.log = [];
     }
 
-    deployDoc.log.push({
-      type: type,
-      datetime: new Date().getTime(),
-      message: message
-    });
+    const existingStages = deployDoc.log.filter(entry => entry.type === 'stage');
+    const thisStageIdx = existingStages.findIndex(entry => entry.key === key);
 
-    return module.exports.update(deployDoc);
+    if (thisStageIdx === -1) {
+      // We have not attempted this stage before
+
+      deployDoc.log.push({
+        type: 'stage',
+        datetime: new Date().getTime(),
+        key: key,
+        message: { message, key }
+      });
+
+      return module.exports.update(deployDoc)
+        .then(() => true);
+    } else if (thisStageIdx === existingStages.length - 1) {
+      // Attempted and not passed, so try again
+
+      return Promise.resolve(true);
+    } else {
+      // Attemped and passed, so skip
+      return Promise.resolve(false);
+    }
   },
   update: doc => {
     return DB.app.put(doc).then(({rev}) => {

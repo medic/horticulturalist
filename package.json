@@ -36,6 +36,6 @@
     "eslint": "^5.12.1",
     "medic-builds-repo": "^0.3.0",
     "mocha": "^5.2.0",
-    "sinon": "4.0.1"
+    "sinon": "^7.2.5"
   }
 }

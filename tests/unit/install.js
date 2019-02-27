@@ -3,7 +3,7 @@ const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
 chai.should();
 
-const sinon = require('sinon').sandbox.create();
+const sinon = require('sinon');
 const DB = require('../../src/dbs');
 const install = require('../../src/install'),
       deploySteps = require('../../src/install/deploySteps'),

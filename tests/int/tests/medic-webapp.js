@@ -12,10 +12,10 @@ const waitCondition = {
   log: true
 };
 
-describe('Basic Medic-Webapp smoke test (v. slow tests!)', function() {
+describe('Basic Medic-Webapp smoke test (SLOW tests!)', function() {
   // These tests require connecting to the PROD builds server
   // and so can be very slow.
-  this.timeout(5 * 60 * 1000);
+  this.timeout(10 * 60 * 1000);
 
   beforeEach(() => {
     return dbUtils.initAppsDB()
