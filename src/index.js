@@ -100,7 +100,7 @@ const action = argv.install             ? ACTIONS.INSTALL :
 
 let version = argv.install || argv.stage;
 if (version === true) {
-  version = 'medic:medic:master';
+  version = '@medic:medic:release';
 }
 
 if (version) {
