@@ -166,7 +166,7 @@ const predeploySteps = (deployDoc) => {
     })
     .then(stagedDdoc => ddoc = stagedDdoc)
     .then(() => stage('horti.stage.extractingDdocs', 'Extracting ddocs', () => extractDdocs(ddoc)))
-    .then(() => stage('horti.stage.warmingViews', 'Warming views', () => warmViews(deployDoc)))
+    .then(() => stage('horti.stage.warmingViews', 'Warming views', () => warmViews().warm(deployDoc)))
     .then(() => stage('horti.stage.readyToDeploy', 'View warming complete, ready to deploy'))
     .then(() => ddoc);
 };

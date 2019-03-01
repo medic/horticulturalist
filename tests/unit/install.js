@@ -7,7 +7,7 @@ const sinon = require('sinon').createSandbox();
 const DB = require('../../src/dbs');
 const install = require('../../src/install'),
       deploySteps = require('../../src/install/deploySteps'),
-      warmviews = require('../../src/install/warmViews'),
+      warmViews = require('../../src/install/warmViews'),
       utils = require('../../src/utils'),
       ddocWrapper = require('../../src/install/ddocWrapper'),
       fs = require('fs-extra');
@@ -187,7 +187,7 @@ describe('Installation flow', () => {
       DB.app.put.resolves({});
       DB.activeTasks.resolves([relevantIndexer, irrelevantIndexer]);
 
-      return warmviews(deployDoc())
+      return warmViews().warm(deployDoc())
         .then(() => {
         DB.app.query.callCount.should.equal(2);
         DB.app.query.args[0][0].should.equal(':staged:some-views/a_view');
@@ -291,7 +291,7 @@ describe('Installation flow', () => {
       });
 
       let _deployDoc = deployDoc();
-      return warmviews(_deployDoc, 100).then(() => {
+      return warmViews().warm(_deployDoc, 100).then(() => {
         DB.activeTasks.callCount.should.equal(5);
         DB.app.query.callCount.should.equal(5);
         utils.update.callCount.should.equal(7);
@@ -459,7 +459,7 @@ describe('Installation flow', () => {
         return Promise.resolve();
       });
 
-      return warmviews(deployDoc()).then(() => {
+      return warmViews().warm(deployDoc()).then(() => {
         DB.activeTasks.callCount.should.equal(6);
         DB.app.query.callCount.should.equal(3);
         deployDocs.length.should.equal(8);
@@ -474,49 +474,196 @@ describe('Installation flow', () => {
       });
     });
 
-    it('should ignore errors from the view warming loop', () => {
-      DB.app.allDocs.resolves({ rows: [
-        { doc: {
+    it('writeProgress should pull progress from active tasks and write it to the deploy doc warm log', () => {
+      const activeTasksToProgress = [{
+        activeTasks: [
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 3, pid: 's-d1-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc1', progress: 4, pid: 's-d1-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc1', progress: 2, pid: 's-d1-3', type: 'indexer'},
+
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc2', progress: 7, pid: 's-d2-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc2', progress: 10, pid: 's-d2-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc2', progress: 5, pid: 's-d2-3', type: 'indexer'},
+
+          {database: 's1', node: 'n1', design_document: 'ddoc1', progress: 77, pid: 'd1-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: 'ddoc1', progress: 99, pid: 'd1-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: 'ddoc1', progress: 52, pid: 'd1-3', type: 'indexer'},
+        ],
+        progress: [
+          {
+            design_document: ':staged:ddoc1',
+            progress: 3,
+            tasks: { 'n1-s-d1-1': 3, 'n1-s-d1-2': 4, 'n1-s-d1-3': 2 }
+          },
+          {
+            design_document: ':staged:ddoc2',
+            progress: 7,
+            tasks: { 'n1-s-d2-1': 7, 'n1-s-d2-2': 10, 'n1-s-d2-3': 5 }
+          }
+        ]
+      }, {
+        activeTasks: [
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 22, pid: 's-d1-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc1', progress: 29, pid: 's-d1-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc1', progress: 18, pid: 's-d1-3', type: 'indexer'},
+
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc2', progress: 36, pid: 's-d2-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc2', progress: 41, pid: 's-d2-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc2', progress: 55, pid: 's-d2-3', type: 'indexer'},
+
+          {database: 's1', node: 'n1', design_document: 'ddoc1', progress: 87, pid: 'd1-1', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: 'ddoc1', progress: 95, pid: 'd1-3', type: 'indexer'},
+        ],
+        progress: [
+          {
+            design_document: ':staged:ddoc1',
+            progress: 23,
+            tasks: { 'n1-s-d1-1': 22, 'n1-s-d1-2': 29, 'n1-s-d1-3': 18 }
+          },
+          {
+            design_document: ':staged:ddoc2',
+            progress: 44,
+            tasks: { 'n1-s-d2-1': 36, 'n1-s-d2-2': 41, 'n1-s-d2-3': 55 }
+          }
+        ]
+      }, {
+        activeTasks: [
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 49, pid: 's-d1-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc1', progress: 65, pid: 's-d1-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc1', progress: 38, pid: 's-d1-3', type: 'indexer'},
+
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc2', progress: 65, pid: 's-d2-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc2', progress: 72, pid: 's-d2-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc2', progress: 81, pid: 's-d2-3', type: 'indexer'},
+        ],
+        progress: [
+          {
+            design_document: ':staged:ddoc1',
+            progress: 51,
+            tasks: { 'n1-s-d1-1': 49, 'n1-s-d1-2': 65, 'n1-s-d1-3': 38 }
+          },
+          {
+            design_document: ':staged:ddoc2',
+            progress: 73,
+            tasks: { 'n1-s-d2-1': 65, 'n1-s-d2-2': 72, 'n1-s-d2-3': 81 }
+          }
+        ],
+      }, {
+        activeTasks: [
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 72, pid: 's-d1-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc1', progress: 92, pid: 's-d1-2', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc1', progress: 75, pid: 's-d1-3', type: 'indexer'},
+
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc2', progress: 93, pid: 's-d2-1', type: 'indexer'},
+          {database: 's2', node: 'n1', design_document: ':staged:ddoc2', progress: 97, pid: 's-d2-2', type: 'indexer'},
+        ],
+        progress: [
+          {
+            design_document: ':staged:ddoc1',
+            progress: 80,
+            tasks: { 'n1-s-d1-1': 72, 'n1-s-d1-2': 92, 'n1-s-d1-3': 75 }
+          },
+          {
+            design_document: ':staged:ddoc2',
+            progress: 97,
+            tasks: { 'n1-s-d2-1': 93, 'n1-s-d2-2': 97, 'n1-s-d2-3': 100 }
+          }
+        ],
+      }, {
+        activeTasks: [
+          {database: 's1', node: 'n1', design_document: ':staged:ddoc1', progress: 92, pid: 's-d1-1', type: 'indexer'},
+          {database: 's3', node: 'n1', design_document: ':staged:ddoc1', progress: 94, pid: 's-d1-3', type: 'indexer'},
+        ],
+        progress: [
+          {
+            design_document: ':staged:ddoc1',
+            progress: 95,
+            tasks: { 'n1-s-d1-1': 92, 'n1-s-d1-2': 100, 'n1-s-d1-3': 94 }
+          },
+          {
+            design_document: ':staged:ddoc2',
+            progress: 100,
+            tasks: { 'n1-s-d2-1': 100, 'n1-s-d2-2': 100, 'n1-s-d2-3': 100 }
+          }
+        ]
+      }];
+
+      activeTasksToProgress.forEach(({activeTasks}, idx) => {
+        DB.activeTasks.onCall(idx).resolves(activeTasks);
+      });
+      DB.app.put.resolves({});
+
+      const _deployDoc = deployDoc();
+      _deployDoc.log.push({
+        type: 'warm_log'
+      });
+
+      let p = Promise.resolve();
+      activeTasksToProgress.forEach(({progress}) => {
+        p = p
+          .then(() => warmViews()._writeProgress(_deployDoc))
+          .then(() => {
+            _deployDoc.log.should.deep.equal([{
+              type: 'warm_log',
+              indexers: progress
+            }]);
+          });
+      });
+      return p;
+    });
+
+    it('viewQueries should determine which views to query to correctly warm the DB', () => {
+      warmViews()._viewQueries([
+        {
+          _id: '_design/:staged:no-views'
+        },
+        {
+          _id: '_design/:staged:also-no-views',
+          views: {}
+        },
+        {
           _id: '_design/:staged:some-views',
           views: {
             a_view: 'the map etc'
           }
-        }}
-      ]});
+        },
+      ]).should.deep.equal([
+        ':staged:some-views/a_view'
+      ]);
+    });
+    it('viewQueries should ignore the lib "view" when finding a view to query', () => {
+      warmViews()._viewQueries([
+        {
+          _id: '_design/:staged:some-views',
+          views: {
+            lib: 'shared libaries that is not a view even though it is located here',
+            yet_another_view: 'the map etc'
+          }
+        }
+      ]).should.deep.equal([
+        ':staged:some-views/yet_another_view'
+      ]);
+    });
+
+    // https://github.com/medic/horticulturalist/issues/39
+    it('viewQueries should ignore mango indexes');
+    it('we should also warm mango indexes')
+
+    it('should ignore errors from the view warming loop', () => {
       DB.app.query.onCall(0).rejects(new Error('This error should not crash view warming'));
       DB.app.query.onCall(1).resolves();
       DB.app.put.resolves({});
       DB.activeTasks.resolves([]);
 
-      return warmviews(deployDoc(), 50)
+      return warmViews()._probeViewsLoop(deployDoc(), [':staged:some-views/a_view'])
         .then(() => {
           DB.app.query.callCount.should.equal(2);
-
-          DB.app.put.callCount.should.equal(3);
-
-          let lastWriteLog = DB.app.put.args[1][0].log.pop();
-          lastWriteLog.type.should.equal('warm_log');
       });
     });
     it('should NOT ignore errors from the query active tasks loop', () => {
-      const clock = sinon.useFakeTimers();
-      DB.app.query.onCall(0).rejects(new Error('This error should not crash view warming'));
-      DB.app.query.onCall(1).callsFake(() => {
-        clock.tick(10001);
-        return Promise.resolve();
-      });
-      DB.app.allDocs.resolves({ rows: [
-        { doc: {
-          _id: '_design/:staged:some-views',
-          views: {
-            a_view: 'the map etc'
-          }
-        }}
-      ]});
-      DB.app.put.resolves({});
       DB.activeTasks.rejects(new Error('This error should crash view warming'));
 
-      return warmviews(deployDoc()).should.be.rejectedWith('should crash');
+      return warmViews()._progressLoop(deployDoc(), 0).should.be.rejectedWith('should crash');
     });
   });
 
