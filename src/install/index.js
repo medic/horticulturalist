@@ -1,4 +1,4 @@
-const { info, debug, stage: stageLog } = require('../log'),
+const { info, debug, stage: stageLog, error } = require('../log'),
       DB = require('../dbs'),
       fs = require('fs-extra'),
       utils = require('../utils'),
@@ -37,19 +37,15 @@ const findDownloadedBuild = deployDoc => {
       binary: true
   })
     .catch(err => {
-      // Problem!
+      // Two reasons this might be happening (as well as "CouchDB is down etc"):
+      // - We are trying to `--complete-install` without `--stage`ing first, and so there is no
+      //   ddoc to pick up from. This is highly unlikely as we check for the deploy doc being in the
+      //   right state before getting here.
+      // - This deploy failed on or after the staged ddocs are deleted. This is highly unlikely
+      //   because (as of writing) this is the very last stage-- postCleanup.
       //
-      // We're running this because either we've already run this step, or we are "completing" an
-      // already staged build. So why doesn't the doc exist? Is this because we have an old or
-      // corrupt deployDoc? Is this because we've already moved this doc from staging to ready and a
-      // really late stage failed on us? We can't tell.
-      //
-      // However, we already had this problem. If you were attempting a complete action that failed
-      // before, and that failure was after you'd moved the staged ddoc into ready position that
-      // complete action would fail thereafter.
-
-      // TODO: think about what to do here
-      console.error('PROBLEMATIC ERROR!', err); //eslint-disable-line
+      // The solution for both of these problems would be to start the installation again
+      error(`Failed to find existing staged ddoc: ${err.message}`);
       throw err;
     });
 };
@@ -227,7 +223,6 @@ module.exports = {
   _preCleanup: preCleanup,
   _downloadBuild: downloadBuild,
   _extractDdocs: extractDdocs,
-  _warmViews: warmViews,
   _deploySteps: deploySteps,
   _postCleanup: postCleanup
 };

@@ -2,9 +2,9 @@ const { debug, info } = require('../log'),
       DB = require('../dbs'),
       utils = require('../utils');
 
-const ACTIVE_TASK_QUERY_INTERVAL = 10 * 1000; // 10 seconds
+const DEFAULT_ACTIVE_TASK_QUERY_INTERVAL = 10 * 1000;
 
-module.exports = (deployDoc) => {
+module.exports = (deployDoc, queryInterval) => {
   const writeProgress = () => {
     return DB.activeTasks()
       .then(tasks => {
@@ -88,42 +88,60 @@ module.exports = (deployDoc) => {
 
   let stopViewWarming = false;
 
-  // Query _active_tasks every ACTIVE_TASK_QUERY_INTERVAL seconds until `stopViewWarming` is true
-  const writeProgressTimeout = (rej) => {
-    setTimeout(() => {
-      if (stopViewWarming) {
-        return;
-      }
-      writeProgress()
-        .then(writeProgressTimeout)
-        .catch(rej);
-    }, ACTIVE_TASK_QUERY_INTERVAL);
-  };
-
-  const probeViews = viewlist => {
-    if (stopViewWarming) {
-      return;
-    }
-
-    return Promise
-      .all(viewlist.map(view => DB.app.query(view, { limit: 1 })))
-      .then(() => {
-        stopViewWarming = true;
-        info('Warming views complete');
-        return updateIndexers();
-      })
-      .catch(err => {
-        if (err.error !== 'timeout') {
-          // Ignore errors in the view warming loop because long-running view queries aren't that
-          // trust-worthy. We *do* check for errors in the writeProgressTimeout loop, so that will
-          // catch real CouchDB errors
-          info(`Unexpected error while warming: (${err.message}), continuing`);
+  const progressLoop = () => {
+    return new Promise((res, rej) => {
+      const checkProgressLater = (waitMs) => {
+        if (stopViewWarming) {
+          return res();
         }
 
-        return probeViews(viewlist);
-      });
+        setTimeout(() => {
+          writeProgress()
+            .then(checkProgressLater)
+            .catch(err => {
+              stopViewWarming = true;
+              rej(err);
+            });
+        }, queryInterval || waitMs || DEFAULT_ACTIVE_TASK_QUERY_INTERVAL);
+      };
+
+      // First progress check should be quick to get the progress bars displaying ASAP
+      checkProgressLater(1000);
+    });
   };
 
+  const probeViewsLoop = viewlist => {
+    return new Promise(res => {
+      const probeViews = () => {
+        if (stopViewWarming) {
+          return res();
+        }
+
+        Promise
+          .all(viewlist.map(view => DB.app.query(view, { limit: 1 })))
+          .then(() => {
+            stopViewWarming = true;
+            info('Warming views complete');
+            return updateIndexers();
+          })
+          .catch(err => {
+            if (err.error !== 'timeout') {
+              // Ignore errors in the view warming loop because long-running view queries aren't that
+              // trust-worthy. We *do* check for errors in the writeProgressTimeout loop, so that will
+              // catch real CouchDB errors
+              info(`Unexpected error while warming: (${err.message}), continuing`);
+            }
+
+            probeViews();
+          });
+      };
+
+      probeViews();
+    });
+  };
+
+  // FIXME: I'm pretty sure this doesn't work with Mango indexes
+  // https://github.com/medic/horticulturalist/issues/39
   const firstView = ddoc =>
     `${ddoc._id.replace('_design/', '')}/${Object.keys(ddoc.views).find(k => k !== 'lib')}`;
 
@@ -136,30 +154,14 @@ module.exports = (deployDoc) => {
 
       info('Beginning view warming');
 
+      // It is intentional but not required (if people hate it) that this doesn't check for and
+      // overwrite existing warm logs, i.e. from a past attempt at this specific deployment.
       deployDoc.log.push({
         type: 'warm_log'
       });
 
       return utils.update(deployDoc)
-        .then(() => {
-          return new Promise((res, rej) => {
-            writeProgressTimeout(rej);
-            probeViews(queries)
-              .then(() => undefined)
-              .catch(err => err)
-              .then(err => {
-                // Manually implementing something similar to a `finally` block
-                // If you read this and our minumum Node version is now > 10.3
-                // then refactor away
-                stopViewWarming = true;
-
-                if (err) {
-                  rej(err);
-                } else {
-                  res();
-                }
-              });
-          });
-        });
+        .then(() => console.log('what'))
+        .then(() => Promise.race([progressLoop(), probeViewsLoop(queries)]));
     });
 };
