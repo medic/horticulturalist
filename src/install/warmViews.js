@@ -106,7 +106,7 @@ module.exports = () => {
 
         setTimeout(() => {
           writeProgress(deployDoc)
-            .then(checkProgressLater)
+            .then(() => checkProgressLater())
             .catch(err => {
               stopViewWarming = true;
               rej(err);
