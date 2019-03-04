@@ -100,11 +100,11 @@ module.exports = () => {
   const progressLoop = (deployDoc, _queryInterval) => {
     return new Promise((res, rej) => {
       const checkProgressLater = (waitMs) => {
-        if (stopViewWarming) {
-          return res();
-        }
-
         setTimeout(() => {
+          if (stopViewWarming) {
+            return res();
+          }
+
           writeProgress(deployDoc)
             .then(() => checkProgressLater())
             .catch(err => {
