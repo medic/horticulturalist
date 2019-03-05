@@ -1,14 +1,22 @@
-const { info, debug, stage: stageLog } = require('../log'),
+const { info, debug, stage: stageLog, error } = require('../log'),
       DB = require('../dbs'),
       fs = require('fs-extra'),
       utils = require('../utils'),
-      ddocWrapper = require('./ddocWrapper');
+      ddocWrapper = require('./ddocWrapper'),
+      warmViews = require('./warmViews');
 
-const ACTIVE_TASK_QUERY_INTERVAL = 10 * 1000; // 10 seconds
-
-const stager = deployDoc => (key, message) => {
-  stageLog(message);
-  return utils.appendDeployLog(deployDoc, {key: key, message: message});
+const stageRunner = deployDoc => (key, message, stageFn) => {
+  return utils.readyStage(deployDoc, key, message)
+    .then(stageShouldRun => {
+      if (stageFn && !stageShouldRun) {
+        // Mark stages with executable content against them as skipped if we
+        // don't think we should run them again
+        stageLog(`Skipping: ${message}`);
+      } else {
+        stageLog(message);
+        return stageFn && stageFn();
+      }
+    })
 };
 
 const keyFromDeployDoc = deployDoc => [
@@ -17,13 +25,38 @@ const keyFromDeployDoc = deployDoc => [
   deployDoc.build_info.version
 ].join(':');
 
+const appId = deployDoc => `_design/${deployDoc.build_info.application}`;
+
+const findDownloadedBuild = deployDoc => {
+  debug(`Locating already downloaded ${keyFromDeployDoc(deployDoc)}`);
+
+  const id = utils.getStagedDdocId(appId(deployDoc));
+
+  return DB.app.get(id, {
+      attachments: true,
+      binary: true
+  })
+    .catch(err => {
+      // Two reasons this might be happening (as well as "CouchDB is down etc"):
+      // - We are trying to `--complete-install` without `--stage`ing first, and so there is no
+      //   ddoc to pick up from. This is highly unlikely as we check for the deploy doc being in the
+      //   right state before getting here.
+      // - This deploy failed on or after the staged ddocs are deleted. This is highly unlikely
+      //   because (as of writing) this is the very last stage-- postCleanup.
+      //
+      // The solution for both of these problems would be to start the installation again
+      error(`Failed to find existing staged ddoc: ${err.message}`);
+      throw err;
+    });
+};
+
 const downloadBuild = deployDoc => {
   debug(`Downloading ${keyFromDeployDoc(deployDoc)}, this may take some time…`);
   return DB.builds.get(keyFromDeployDoc(deployDoc), { attachments: true, binary: true })
     .then(deployable => {
       debug(`Got ${deployable._id}, staging`);
 
-      deployable._id = `_design/${deployDoc.build_info.application}`;
+      deployable._id = appId(deployDoc);
       utils.stageDdoc(deployable);
       deployable.deploy_info = {
         timestamp: new Date(),
@@ -57,141 +90,6 @@ const extractDdocs = ddoc => {
   debug(`Storing staged: ${JSON.stringify(compiledDocs.map(d => d._id))}`);
 
   return utils.betterBulkDocs(compiledDocs);
-};
-
-const warmViews = (deployDoc) => {
-  let viewsWarmed = false;
-
-  const writeProgress = () => {
-    return DB.activeTasks()
-      .then(tasks => {
-        const relevantTasks = tasks.filter(task =>
-          task.type === 'indexer' && task.design_document.includes(':staged:'));
-
-        return updateIndexers(relevantTasks);
-      });
-  };
-
-  // logs indexer progress in the console
-  // _design/doc  [||||||||||29%||||||||||_________________________________________________________]
-  const logIndexersProgress = (indexers) => {
-    if (!indexers || !indexers.length) {
-      return;
-    }
-
-    const logProgress = (indexer) => {
-      // progress bar stretches to match console width.
-      // 60 is roughly the nbr of chars displayed around the bar (ddoc name + debug padding)
-      const barLength = process.stdout.columns - 60,
-            progress = `${indexer.progress}%`,
-            filledBarLength = (indexer.progress / 100 * barLength),
-            bar = progress
-              .padStart((filledBarLength + progress.length) / 2, '|')
-              .padEnd(filledBarLength, '|')
-              .padEnd(barLength, '_'),
-            ddocName = indexer.design_document.padEnd(35, ' ');
-
-      debug(`${ddocName}[${bar}]`);
-    };
-
-    debug('View indexer progress');
-    indexers.forEach(logProgress);
-  };
-
-  // Groups tasks by `design_document` and calculates the average progress per ddoc
-  // When a task is finished, it disappears from _active_tasks
-  const updateIndexers = (runningTasks) => {
-    const entry = deployDoc.log[deployDoc.log.length - 1],
-          indexers = entry.indexers || [];
-
-    // We assume all previous tasks have finished.
-    indexers.forEach(setTasksToComplete);
-    // If a task is new or still running, it's progress is updated
-    updateRunningTasks(indexers, runningTasks);
-    indexers.forEach(calculateAverageProgress);
-
-    entry.indexers = indexers;
-
-    logIndexersProgress(indexers);
-    return utils.update(deployDoc);
-  };
-
-  const setTasksToComplete = (indexer) => {
-    Object
-      .keys(indexer.tasks)
-      .forEach(pid => {
-        indexer.tasks[pid] = 100;
-      });
-  };
-
-  const calculateAverageProgress = (indexer) => {
-    const tasks = Object.keys(indexer.tasks);
-    indexer.progress = Math.round(tasks.reduce((progress, pid) => progress + indexer.tasks[pid], 0) / tasks.length);
-  };
-
-  const updateRunningTasks = (indexers, activeTasks = []) => {
-    activeTasks.forEach(task => {
-      let indexer = indexers.find(indexer => indexer.design_document === task.design_document);
-      if (!indexer) {
-        indexer = {
-          design_document: task.design_document,
-          tasks: {},
-        };
-        indexers.push(indexer);
-      }
-      indexer.tasks[`${task.node}-${task.pid}`] = task.progress;
-    });
-  };
-
-  // Query _active_tasks every 10 seconds until `viewsWarmed` is true
-  const writeProgressTimeout = () => {
-    setTimeout(() => {
-      if (viewsWarmed) {
-        return;
-      }
-      writeProgress().then(writeProgressTimeout);
-    }, ACTIVE_TASK_QUERY_INTERVAL);
-  };
-
-  const probeViews = viewlist => {
-    return Promise
-      .all(viewlist.map(view => DB.app.query(view, { limit: 1 })))
-      .then(() => {
-        viewsWarmed = true;
-        info('Warming views complete');
-        return updateIndexers();
-      })
-      .catch(err => {
-        if (err.error !== 'timeout') {
-          throw err;
-        }
-
-        return probeViews(viewlist);
-      });
-  };
-
-  const firstView = ddoc =>
-    `${ddoc._id.replace('_design/', '')}/${Object.keys(ddoc.views).find(k => k !== 'lib')}`;
-
-  return utils.getStagedDdocs(true)
-    .then(ddocs => {
-      debug(`Got ${ddocs.length} staged ddocs`);
-      const queries = ddocs
-        .filter(ddoc => ddoc.views && Object.keys(ddoc.views).length)
-        .map(firstView);
-
-      info('Beginning view warming');
-
-      deployDoc.log.push({
-        type: 'warm_log'
-      });
-
-      return utils.update(deployDoc)
-        .then(() => {
-          writeProgressTimeout();
-          return probeViews(queries);
-        });
-    });
 };
 
 const clearStagedDdocs = () => {
@@ -255,20 +153,20 @@ const performDeploy = (mode, deployDoc, ddoc, firstRun) => {
 };
 
 const predeploySteps = (deployDoc) => {
-  const stage = stager(deployDoc);
+  const stage = stageRunner(deployDoc);
 
   let ddoc;
 
   return stage('horti.stage.init', `Horticulturalist deployment of '${keyFromDeployDoc(deployDoc)}' initialising`)
-    .then(() => stage('horti.stage.preCleanup', 'Pre-deploy cleanup'))
-    .then(() => preCleanup())
-    .then(() => stage('horti.stage.download', 'Downloading and staging install'))
-    .then(() => downloadBuild(deployDoc))
+    .then(() => stage('horti.stage.preCleanup', 'Pre-deploy cleanup', preCleanup))
+    .then(() => stage('horti.stage.download', 'Downloading and staging install', () => downloadBuild(deployDoc)))
+    .then(stagedDdoc => {
+      // If we're resuming a deployment and we skip the above stage we need to find the ddoc manually
+      return stagedDdoc || findDownloadedBuild(deployDoc)
+    })
     .then(stagedDdoc => ddoc = stagedDdoc)
-    .then(() => stage('horti.stage.extractingDdocs', 'Extracting ddocs'))
-    .then(() => extractDdocs(ddoc))
-    .then(() => stage('horti.stage.warmingViews', 'Warming views'))
-    .then(() => warmViews(deployDoc))
+    .then(() => stage('horti.stage.extractingDdocs', 'Extracting ddocs', () => extractDdocs(ddoc)))
+    .then(() => stage('horti.stage.warmingViews', 'Warming views', () => warmViews().warm(deployDoc)))
     .then(() => stage('horti.stage.readyToDeploy', 'View warming complete, ready to deploy'))
     .then(() => ddoc);
 };
@@ -281,24 +179,16 @@ const deploySteps = (mode, deployDoc, firstRun, ddoc) => {
     if (ddoc) {
       return ddoc;
     } else {
-      debug('Loading application ddoc');
-      const ddocId = utils.getStagedDdocId(`_design/${deployDoc.build_info.application}`);
-      return DB.app.get(ddocId, {
-        attachments: true,
-        binary: true
-      });
+      return findDownloadedBuild(deployDoc);
     }
   };
 
-  const stage = stager(deployDoc);
+  const stage = stageRunner(deployDoc);
   return stage('horti.stage.initDeploy', 'Initiating deployment')
     .then(getApplicationDdoc)
-    .then(ddoc => {
-      return stage('horti.stage.deploying', 'Deploying new installation')
-        .then(() => performDeploy(mode, deployDoc, ddoc, firstRun))
-        .then(() => stage('horti.stage.postCleanup', 'Post-deploy cleanup, installation complete'))
-        .then(() => postCleanup(ddocWrapper(ddoc, mode), deployDoc));
-    });
+    .then(stagedDdoc => ddoc = stagedDdoc)
+    .then(() => stage('horti.stage.deploying', 'Deploying new installation', () => performDeploy(mode, deployDoc, ddoc, firstRun)))
+    .then(() => stage('horti.stage.postCleanup', 'Post-deploy cleanup, installation complete', () => postCleanup(ddocWrapper(ddoc, mode), deployDoc)));
 };
 
 
@@ -333,7 +223,6 @@ module.exports = {
   _preCleanup: preCleanup,
   _downloadBuild: downloadBuild,
   _extractDdocs: extractDdocs,
-  _warmViews: warmViews,
   _deploySteps: deploySteps,
   _postCleanup: postCleanup
 };

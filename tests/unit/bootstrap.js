@@ -4,7 +4,7 @@ chai.use(chaiAsPromised);
 
 const should = chai.should();
 
-const sinon = require('sinon').sandbox.create();
+const sinon = require('sinon');
 const DB = require('../../src/dbs');
 const packageUtils = require('../../src/package');
 const bootstrap = require('../../src/bootstrap');
