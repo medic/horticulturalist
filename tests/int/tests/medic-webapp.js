@@ -80,7 +80,7 @@ describe('Basic Medic-Webapp smoke test (SLOW tests!)', function() {
         checkBuildApps('medic:medic:3.0.0');
         horti.kill();
       })
-      // Then make sure attempting to install the same version on top of each otehr works
+      // Then make sure attempting to install the same version on top of each other works
       .then(() => hortiUtils.start([ '--install=medic:medic:3.0.0', '--test' ], waitCondition))
       .then(horti => {
         checkBuildApps('medic:medic:3.0.0');

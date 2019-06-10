@@ -3,7 +3,7 @@ const fs = require('fs-extra');
 const { debug } = require('../log');
 const app = require('./app');
 
-module.exports = (ddoc, mode) => {
+module.exports = (ddoc, mode, currentDdoc) => {
 
   const moduleToApp = module => {
     if (!ddoc._attachments[module]) {
@@ -15,15 +15,20 @@ module.exports = (ddoc, mode) => {
 
   const appNotAlreadyUnzipped = app => !fs.existsSync(app.deployPath());
 
-  const getApps = () => {
-    if (ddoc.node_modules) {
+  const appChanged = (app, currentApps) => {
+    const currentApp = currentApps.find(currentApp => currentApp.name === app.name);
+    return !currentApp || currentApp.digest !== app.digest;
+  };
+
+  const getDdocApps = (ddoc) => {
+    if (ddoc && ddoc.node_modules) {
       // Legacy Kanso data location
       return ddoc.node_modules
         .split(',')
         .map(module => moduleToApp(module));
     }
 
-    if (ddoc.build_info) {
+    if (ddoc && ddoc.build_info) {
       // New horticulturalist layout
       return ddoc.build_info.node_modules
         .map(module => moduleToApp(module));
@@ -32,17 +37,21 @@ module.exports = (ddoc, mode) => {
     return [];
   };
 
+  const getApps = () => getDdocApps(ddoc);
+  const getCurrentApps = () => getDdocApps(currentDdoc);
+
   const getChangedApps = () => {
     let changedApps = getApps();
+    const currentApps = getCurrentApps();
     debug(`Found ${JSON.stringify(changedApps)}`);
-    changedApps = changedApps.filter(appNotAlreadyUnzipped);
-    debug(`Apps that aren't unzipped: ${JSON.stringify(changedApps)}`);
+    changedApps = changedApps.filter(app => appChanged(app, currentApps) || appNotAlreadyUnzipped(app));
+    debug(`Apps that are changed: ${JSON.stringify(changedApps)}`);
 
     return changedApps;
   };
 
   const unzipChangedApps = (changedApps) =>
-    Promise.all(changedApps.map(app => {
+    Promise.all(changedApps.filter(appNotAlreadyUnzipped).map(app => {
       const attachment = ddoc._attachments[app.attachmentName].data;
       return decompress(attachment, app.deployPath(), {
         map: file => {

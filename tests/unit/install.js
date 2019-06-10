@@ -131,6 +131,8 @@ describe('Installation flow', () => {
   });
 
   describe('Warming views', () => {
+    afterEach(() => warmViews()._reset());
+
     it('writeProgress should pull progress from active tasks and write it to the deploy doc warm log', () => {
       const activeTasksToProgress = [{
         activeTasks: [
@@ -304,7 +306,7 @@ describe('Installation flow', () => {
 
     // https://github.com/medic/horticulturalist/issues/39
     it('viewQueries should ignore mango indexes');
-    it('we should also warm mango indexes')
+    it('we should also warm mango indexes');
 
     it('should ignore errors from the view warming loop', () => {
       DB.app.query.onCall(0).rejects(new Error('This error should not crash view warming'));

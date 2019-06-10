@@ -7,7 +7,7 @@ const { info, debug } = require('../log'),
 
 const utils = require('../utils');
 
-module.exports = (mode, deployDoc) => {
+module.exports = (mode, deployDoc, currentDdoc) => {
 
   const startApps = (mode) => {
     info('Starting all apps…', apps.APPS);
@@ -124,7 +124,7 @@ module.exports = (mode, deployDoc) => {
   };
 
   const processDdoc = (ddoc, firstRun) => {
-    const wrappedDdoc = ddocWrapper(ddoc, mode);
+    const wrappedDdoc = ddocWrapper(ddoc, mode, currentDdoc);
     const changedApps = wrappedDdoc.getChangedApps();
     const appsToDeploy = changedApps.length;
 
