@@ -14,6 +14,7 @@ module.exports = (ddoc, mode) => {
   };
 
   const appNotAlreadyUnzipped = app => !fs.existsSync(app.deployPath());
+
   const appNotCurrent = app => {
     const getCurrentPath = (app) => {
       const currentPath = app.deployPath('current');
@@ -32,15 +33,15 @@ module.exports = (ddoc, mode) => {
     return !currentPath || currentPath !== app.deployPath();
   };
 
-  const getDdocApps = (ddoc) => {
-    if (ddoc && ddoc.node_modules) {
+  const getApps = () => {
+    if (ddoc.node_modules) {
       // Legacy Kanso data location
       return ddoc.node_modules
         .split(',')
         .map(module => moduleToApp(module));
     }
 
-    if (ddoc && ddoc.build_info) {
+    if (ddoc.build_info) {
       // New horticulturalist layout
       return ddoc.build_info.node_modules
         .map(module => moduleToApp(module));
@@ -48,8 +49,6 @@ module.exports = (ddoc, mode) => {
 
     return [];
   };
-
-  const getApps = () => getDdocApps(ddoc);
 
   const getChangedApps = () => {
     let changedApps = getApps();
@@ -60,8 +59,9 @@ module.exports = (ddoc, mode) => {
     return changedApps;
   };
 
-  const unzipChangedApps = (changedApps) =>
-    Promise.all(changedApps.filter(appNotAlreadyUnzipped).map(app => {
+  const unzipChangedApps = (changedApps) => {
+    const appsToUnzip = changedApps.filter(appNotAlreadyUnzipped);
+    return Promise.all(appsToUnzip.map(app => {
       const attachment = ddoc._attachments[app.attachmentName].data;
       return decompress(attachment, app.deployPath(), {
         map: file => {
@@ -69,7 +69,8 @@ module.exports = (ddoc, mode) => {
           return file;
         }
       });
-    }));
+    }))
+  };
 
   return {
     ddoc: ddoc,
