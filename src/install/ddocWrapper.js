@@ -3,7 +3,7 @@ const fs = require('fs-extra');
 const { debug } = require('../log');
 const app = require('./app');
 
-module.exports = (ddoc, mode, currentDdoc) => {
+module.exports = (ddoc, mode) => {
 
   const moduleToApp = module => {
     if (!ddoc._attachments[module]) {
@@ -14,10 +14,22 @@ module.exports = (ddoc, mode, currentDdoc) => {
   };
 
   const appNotAlreadyUnzipped = app => !fs.existsSync(app.deployPath());
+  const appNotCurrent = app => {
+    const getCurrentPath = (app) => {
+      const currentPath = app.deployPath('current');
+      if (!fs.existsSync(currentPath)) {
+        return;
+      }
+      const linkString = fs.readlinkSync(currentPath);
+      if(!fs.existsSync(linkString)) {
+        return;
+      }
 
-  const appChanged = (app, currentApps) => {
-    const currentApp = currentApps.find(currentApp => currentApp.name === app.name);
-    return !currentApp || currentApp.digest !== app.digest;
+      return linkString;
+    };
+
+    const currentPath = getCurrentPath(app);
+    return !currentPath || currentPath !== app.deployPath();
   };
 
   const getDdocApps = (ddoc) => {
@@ -38,13 +50,11 @@ module.exports = (ddoc, mode, currentDdoc) => {
   };
 
   const getApps = () => getDdocApps(ddoc);
-  const getCurrentApps = () => getDdocApps(currentDdoc);
 
   const getChangedApps = () => {
     let changedApps = getApps();
-    const currentApps = getCurrentApps();
     debug(`Found ${JSON.stringify(changedApps)}`);
-    changedApps = changedApps.filter(app => appChanged(app, currentApps) || appNotAlreadyUnzipped(app));
+    changedApps = changedApps.filter(appNotCurrent);
     debug(`Apps that are changed: ${JSON.stringify(changedApps)}`);
 
     return changedApps;

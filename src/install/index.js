@@ -147,8 +147,8 @@ const postCleanup = (ddocWrapper, deployDoc) => {
       });
 };
 
-const performDeploy = (mode, deployDoc, ddoc, firstRun, currentDdoc) => {
-  const deploy = require('./deploySteps')(mode, deployDoc, currentDdoc);
+const performDeploy = (mode, deployDoc, ddoc, firstRun) => {
+  const deploy = require('./deploySteps')(mode, deployDoc);
   return deploy.run(ddoc, firstRun);
 };
 
@@ -183,28 +183,12 @@ const deploySteps = (mode, deployDoc, firstRun, ddoc) => {
     }
   };
 
-  const getCurrentApplicationDdoc = () => {
-    const id = utils.mainDdocId(deployDoc);
-    return DB.app
-      .get(id)
-      .catch(err => {
-        if (err.status === 404) {
-          return;
-        }
-        error(`Failed to find existing ddoc: ${err.message}`);
-        throw err;
-      });
-  };
-
-  let currentDdoc;
   const stage = stageRunner(deployDoc);
   return stage('horti.stage.initDeploy', 'Initiating deployment')
     .then(getApplicationDdoc)
     .then(stagedDdoc => ddoc = stagedDdoc)
-    .then(getCurrentApplicationDdoc)
-    .then(ddoc => currentDdoc = ddoc)
-    .then(() => stage('horti.stage.deploying', 'Deploying new installation', () => performDeploy(mode, deployDoc, ddoc, firstRun, currentDdoc)))
-    .then(() => stage('horti.stage.postCleanup', 'Post-deploy cleanup, installation complete', () => postCleanup(ddocWrapper(ddoc, mode, currentDdoc), deployDoc)));
+    .then(() => stage('horti.stage.deploying', 'Deploying new installation', () => performDeploy(mode, deployDoc, ddoc, firstRun)))
+    .then(() => stage('horti.stage.postCleanup', 'Post-deploy cleanup, installation complete', () => postCleanup(ddocWrapper(ddoc, mode), deployDoc)));
 };
 
 
