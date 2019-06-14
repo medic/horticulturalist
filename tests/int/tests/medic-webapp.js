@@ -33,9 +33,9 @@ describe('Basic Medic-Webapp smoke test (SLOW tests!)', function() {
 
   it('should --install two upgrades without error', () => {
     return hortiUtils
-      .start([ '--install=medic:medic:3.0.0', '--test' ], waitCondition)
+      .start([ '--install=medic:medic:3.3.0', '--test' ], waitCondition)
       .then(horti => horti.kill())
-      .then(() => hortiUtils.start([ '--install=medic:medic:3.1.0', '--test' ], waitCondition))
+      .then(() => hortiUtils.start([ '--install=medic:medic:3.4.0', '--test' ], waitCondition))
       .then(horti => horti.kill());
   });
 
@@ -57,33 +57,33 @@ describe('Basic Medic-Webapp smoke test (SLOW tests!)', function() {
     };
 
     return request({
-        url: PROD_BUILD_URL + '/_all_docs?keys=["medic:medic:3.0.0","medic:medic:3.1.0"]&include_docs=true',
+        url: PROD_BUILD_URL + '/_all_docs?keys=["medic:medic:3.3.0","medic:medic:3.4.0"]&include_docs=true',
         json: true
       })
       .then(results => {
         results.rows.forEach(row => buildDocs[row.id] = row.doc);
-        return hortiUtils.start([ '--install=medic:medic:3.0.0', '--test' ], waitCondition);
+        return hortiUtils.start([ '--install=medic:medic:3.3.0', '--test' ], waitCondition);
       })
       // First setup an old version and then an upgrade to a later one
       .then(horti => {
-        checkBuildApps('medic:medic:3.0.0');
+        checkBuildApps('medic:medic:3.3.0');
         horti.kill();
       })
-      .then(() => hortiUtils.start([ '--install=medic:medic:3.1.0', '--test' ], waitCondition))
+      .then(() => hortiUtils.start([ '--install=medic:medic:3.4.0', '--test' ], waitCondition))
       .then(horti => {
-        checkBuildApps('medic:medic:3.1.0');
+        checkBuildApps('medic:medic:3.4.0');
         horti.kill();
       })
       // Then make sure reverting to an existing old version works
-      .then(() => hortiUtils.start([ '--install=medic:medic:3.0.0', '--test' ], waitCondition))
+      .then(() => hortiUtils.start([ '--install=medic:medic:3.3.0', '--test' ], waitCondition))
       .then(horti => {
-        checkBuildApps('medic:medic:3.0.0');
+        checkBuildApps('medic:medic:3.3.0');
         horti.kill();
       })
       // Then make sure attempting to install the same version on top of each other works
-      .then(() => hortiUtils.start([ '--install=medic:medic:3.0.0', '--test' ], waitCondition))
+      .then(() => hortiUtils.start([ '--install=medic:medic:3.3.0', '--test' ], waitCondition))
       .then(horti => {
-        checkBuildApps('medic:medic:3.0.0');
+        checkBuildApps('medic:medic:3.3.0');
         horti.kill();
       });
   });
