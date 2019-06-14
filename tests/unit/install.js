@@ -131,8 +131,6 @@ describe('Installation flow', () => {
   });
 
   describe('Warming views', () => {
-    afterEach(() => warmViews()._reset());
-
     it('writeProgress should pull progress from active tasks and write it to the deploy doc warm log', () => {
       const activeTasksToProgress = [{
         activeTasks: [

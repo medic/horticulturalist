@@ -3,18 +3,21 @@ const { debug, info } = require('../log'),
       utils = require('../utils');
 
 const DEFAULT_ACTIVE_TASK_QUERY_INTERVAL = 10 * 1000;
-let stopViewWarming = false;
 
 const writeProgress = (deployDoc) => {
-  return DB.activeTasks()
+  return DB
+    .activeTasks()
     .then(tasks => {
       const relevantTasks = tasks.filter(task =>
         task.type === 'indexer' && task.design_document.includes(':staged:'));
 
-      if (stopViewWarming) {
-        return;
-      }
       return updateIndexers(deployDoc, relevantTasks);
+    })
+    .catch(err => {
+      // catch conflicts
+      if (err.status !== 409) {
+        throw err;
+      }
     });
 };
 
@@ -99,6 +102,8 @@ const viewQueries = ddocs => ddocs
       .map(firstView);
 
 module.exports = () => {
+  let stopViewWarming = false;
+
   const progressLoop = (deployDoc, _queryInterval) => {
     return new Promise((res, rej) => {
       const checkProgressLater = (waitMs) => {
@@ -173,7 +178,6 @@ module.exports = () => {
     _probeViewsLoop: probeViewsLoop,
     _progressLoop: progressLoop,
     _writeProgress: writeProgress,
-    _viewQueries: viewQueries,
-    _reset: () => stopViewWarming = false
+    _viewQueries: viewQueries
   };
 };
