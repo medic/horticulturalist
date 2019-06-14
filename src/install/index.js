@@ -16,7 +16,7 @@ const stageRunner = deployDoc => (key, message, stageFn) => {
         stageLog(message);
         return stageFn && stageFn();
       }
-    })
+    });
 };
 
 const keyFromDeployDoc = deployDoc => [
@@ -114,7 +114,9 @@ const removeOldVersion = ddoc => {
       if(fs.existsSync(linkString)) {
         debug(`Deleting old ${app.name} from ${linkString}…`);
         fs.removeSync(linkString);
-      } else debug(`Old app not found at ${linkString}.`);
+      } else {
+        debug(`Old app not found at ${linkString}.`);
+      }
 
       fs.unlinkSync(oldPath);
     }
@@ -162,7 +164,7 @@ const predeploySteps = (deployDoc) => {
     .then(() => stage('horti.stage.download', 'Downloading and staging install', () => downloadBuild(deployDoc)))
     .then(stagedDdoc => {
       // If we're resuming a deployment and we skip the above stage we need to find the ddoc manually
-      return stagedDdoc || findDownloadedBuild(deployDoc)
+      return stagedDdoc || findDownloadedBuild(deployDoc);
     })
     .then(stagedDdoc => ddoc = stagedDdoc)
     .then(() => stage('horti.stage.extractingDdocs', 'Extracting ddocs', () => extractDdocs(ddoc)))

@@ -9,6 +9,24 @@
   },
   "globals": {},
   "rules": {
-    "no-var": 2
+    "curly": "error",
+    "eqeqeq": "error",
+    "guard-for-in": "error",
+    "no-bitwise": "error",
+    "no-buffer-constructor": "error",
+    "no-caller": "error",
+    "no-console": "off",
+    "no-var": "error",
+    "semi": [
+      "error",
+      "always"
+    ],
+    "quotes": [
+      "error",
+      "single",
+      {
+        "allowTemplateLiterals": true
+      }
+    ]
   }
 }

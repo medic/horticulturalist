@@ -152,7 +152,7 @@ module.exports = {
       })
       .catch(err => {
         if (err.code === 'EPIPE') {
-          err.horticulturalist = `Failed to perform bulk docs, you may need to increase CouchDB's max_http_request_size`;
+          err.horticulturalist = 'Failed to perform bulk docs, you may need to increase CouchDB\'s max_http_request_size';
           throw err;
         }
 

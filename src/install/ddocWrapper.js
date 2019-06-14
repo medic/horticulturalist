@@ -16,21 +16,16 @@ module.exports = (ddoc, mode) => {
   const appNotAlreadyUnzipped = app => !fs.existsSync(app.deployPath());
 
   const appNotCurrent = app => {
-    const getCurrentPath = (app) => {
-      const currentPath = app.deployPath('current');
-      if (!fs.existsSync(currentPath)) {
-        return;
-      }
-      const linkString = fs.readlinkSync(currentPath);
-      if(!fs.existsSync(linkString)) {
-        return;
-      }
+    const currentPath = app.deployPath('current');
+    if (!fs.existsSync(currentPath)) {
+      return true;
+    }
+    const linkString = fs.readlinkSync(currentPath);
+    if(!fs.existsSync(linkString)) {
+      return true;
+    }
 
-      return linkString;
-    };
-
-    const currentPath = getCurrentPath(app);
-    return !currentPath || currentPath !== app.deployPath();
+    return linkString !== app.deployPath();
   };
 
   const getApps = () => {
@@ -69,7 +64,7 @@ module.exports = (ddoc, mode) => {
           return file;
         }
       });
-    }))
+    }));
   };
 
   return {
