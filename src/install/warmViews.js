@@ -63,7 +63,7 @@ const updateIndexers = (deployDoc, runningTasks) => {
   entry.indexers = indexers;
 
   logIndexersProgress(indexers);
-  info('updating indexers', runningTasks);
+  info('updating indexers', runningTasks, deployDoc._rev);
   return utils.update(deployDoc);
 };
 
