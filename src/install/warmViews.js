@@ -11,7 +11,6 @@ const writeProgress = (deployDoc) => {
       const relevantTasks = tasks.filter(task =>
         task.type === 'indexer' && task.design_document.includes(':staged:'));
 
-      info('Writing progress');
       return updateIndexers(deployDoc, relevantTasks);
     })
     .catch(err => {
@@ -63,7 +62,6 @@ const updateIndexers = (deployDoc, runningTasks) => {
   entry.indexers = indexers;
 
   logIndexersProgress(indexers);
-  info('updating indexers', runningTasks);
   return utils.update(deployDoc);
 };
 
