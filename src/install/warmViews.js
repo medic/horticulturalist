@@ -64,7 +64,12 @@ const updateIndexers = (deployDoc, runningTasks) => {
 
   logIndexersProgress(indexers);
   info('updating indexers', runningTasks, deployDoc._rev);
-  return utils.update(deployDoc);
+  return DB.app.get(deployDoc._id).then(existent => {
+    if (existent._rev !== deployDoc._rev) {
+      debug(existent);
+    }
+    return utils.update(deployDoc);
+  });
 };
 
 const setTasksToComplete = (indexer) => {

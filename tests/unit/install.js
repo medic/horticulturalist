@@ -249,6 +249,7 @@ describe('Installation flow', () => {
         DB.activeTasks.onCall(idx).resolves(activeTasks);
       });
       DB.app.put.resolves({});
+      DB.app.get.resolves({});
 
       const _deployDoc = deployDoc();
       _deployDoc.log.push({
