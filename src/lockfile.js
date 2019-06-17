@@ -11,10 +11,7 @@ function lockFileExists() {
 
 const waitForLock = () =>
   new Promise((resolve, reject) => {
-    lockfile.lock(LOCK_FILE, err => {
-      if(err) reject(err);
-      else resolve();
-    });
+    lockfile.lock(LOCK_FILE, err => err ? reject(err) : resolve());
   });
 
 module.exports = {

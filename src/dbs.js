@@ -46,7 +46,9 @@ if (process.env.TESTING) {
   };
 
   const DEPLOY_URL = process.env.COUCH_URL;
-  if(!DEPLOY_URL) throw new Error('COUCH_URL env var not set.');
+  if (!DEPLOY_URL) {
+    throw new Error('COUCH_URL env var not set.');
+  }
 
   module.exports = {
     app: new PouchDB(DEPLOY_URL),

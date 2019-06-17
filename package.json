@@ -12,7 +12,7 @@
   },
   "scripts": {
     "start": "node src/index.js --dev",
-    "eslint": "eslint src/ tests/",
+    "eslint": "eslint src/**/* tests/**/*",
     "test": "npm run eslint && npm run unit-tests && npm run int-tests",
     "unit-tests": "TESTING=1 mocha ./tests/unit/**.js",
     "int-tests": "mocha --full-trace -s 10000 -t 65536 ./tests/int/tests/**.js"

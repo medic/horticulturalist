@@ -7,7 +7,7 @@ describe('General utilities', () => {
   describe('Ready stage', () => {
     beforeEach(() => {
       sinon.restore();
-    })
+    });
 
     it('Writes and readies a new stage not seen by this deployment', () => {
       sinon.stub(utils, 'update').resolves();

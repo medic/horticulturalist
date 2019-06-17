@@ -92,7 +92,7 @@ module.exports = (mode, deployDoc) => {
   };
 
   const deployStagedDdocs = () => {
-    info(`Deploying staged ddocs`);
+    info('Deploying staged ddocs');
 
     return moduleWithContext._loadStagedDdocs()
       .then(({primaryDdoc, secondaryDdocs}) => {
@@ -114,7 +114,9 @@ module.exports = (mode, deployDoc) => {
             fs.unlinkSync(oldLinkString);
           }
           fs.symlinkSync(linkString, oldLinkString);
-        } else debug(`Old app not found at ${linkString}.`);
+        } else {
+          debug(`Old app not found at ${linkString}.`);
+        }
 
         fs.unlinkSync(livePath);
       }

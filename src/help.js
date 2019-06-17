@@ -5,7 +5,7 @@ const {info} = require('./log');
 
 const pluckOptionsFromReadme = () => {
   const readmePath = path.join(__dirname, '..', 'README.md');
-  let readmeString = "\n" + fs.readFileSync(readmePath, 'utf8');
+  let readmeString = '\n' + fs.readFileSync(readmePath, 'utf8');
 
   // Everything before options
   readmeString = readmeString.replace(/[\s\S]*# Options/, '# Options');

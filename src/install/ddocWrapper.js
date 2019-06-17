@@ -15,6 +15,19 @@ module.exports = (ddoc, mode) => {
 
   const appNotAlreadyUnzipped = app => !fs.existsSync(app.deployPath());
 
+  const appNotCurrent = app => {
+    const currentPath = app.deployPath('current');
+    if (!fs.existsSync(currentPath)) {
+      return true;
+    }
+    const linkString = fs.readlinkSync(currentPath);
+    if(!fs.existsSync(linkString)) {
+      return true;
+    }
+
+    return linkString !== app.deployPath();
+  };
+
   const getApps = () => {
     if (ddoc.node_modules) {
       // Legacy Kanso data location
@@ -35,14 +48,15 @@ module.exports = (ddoc, mode) => {
   const getChangedApps = () => {
     let changedApps = getApps();
     debug(`Found ${JSON.stringify(changedApps)}`);
-    changedApps = changedApps.filter(appNotAlreadyUnzipped);
-    debug(`Apps that aren't unzipped: ${JSON.stringify(changedApps)}`);
+    changedApps = changedApps.filter(appNotCurrent);
+    debug(`Apps that are changed: ${JSON.stringify(changedApps)}`);
 
     return changedApps;
   };
 
-  const unzipChangedApps = (changedApps) =>
-    Promise.all(changedApps.map(app => {
+  const unzipChangedApps = (changedApps) => {
+    const appsToUnzip = changedApps.filter(appNotAlreadyUnzipped);
+    return Promise.all(appsToUnzip.map(app => {
       const attachment = ddoc._attachments[app.attachmentName].data;
       return decompress(attachment, app.deployPath(), {
         map: file => {
@@ -51,6 +65,7 @@ module.exports = (ddoc, mode) => {
         }
       });
     }));
+  };
 
   return {
     ddoc: ddoc,

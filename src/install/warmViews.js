@@ -5,12 +5,19 @@ const { debug, info } = require('../log'),
 const DEFAULT_ACTIVE_TASK_QUERY_INTERVAL = 10 * 1000;
 
 const writeProgress = (deployDoc) => {
-  return DB.activeTasks()
+  return DB
+    .activeTasks()
     .then(tasks => {
       const relevantTasks = tasks.filter(task =>
         task.type === 'indexer' && task.design_document.includes(':staged:'));
 
       return updateIndexers(deployDoc, relevantTasks);
+    })
+    .catch(err => {
+      // catch conflicts
+      if (err.status !== 409) {
+        throw err;
+      }
     });
 };
 
@@ -171,6 +178,6 @@ module.exports = () => {
     _probeViewsLoop: probeViewsLoop,
     _progressLoop: progressLoop,
     _writeProgress: writeProgress,
-    _viewQueries: viewQueries,
+    _viewQueries: viewQueries
   };
 };
