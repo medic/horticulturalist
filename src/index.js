@@ -128,7 +128,7 @@ onExit((code) => {
   process.exit(code || 0);
 });
 
-info(`Starting Horticulturalist ${require('../package.json').version} ${mode.daemon ? 'daemon ' : ''}in ${mode.name} mode`)
+info(`Starting Horticulturalist ${require('../package.json').version} ${mode.daemon ? 'daemon ' : ''}in ${mode.name} mode`);
 checks()
   .then(() => {
     fs.mkdirs(mode.deployments);
