@@ -14,7 +14,6 @@ const apps = require('./apps'),
       daemon = require('./daemon'),
       fatality = require('./fatality'),
       help = require('./help'),
-      lockfile = require('./lockfile'),
       packageUtils = require('./package');
 
 const MODES = {
@@ -115,17 +114,12 @@ if (!action && !mode.daemon) {
   process.exit(-1);
 }
 
-if(lockfile.exists()) {
-  throw new Error(`Lock file already exists at ${lockfile.path()}.  Cannot start horticulturalising.`);
-}
-
 process.on('uncaughtException', fatality);
 process.on('unhandledRejection', (err) => {
   error(err);
   fatality('Unhandled rejection, please raise this as a bug!');
 });
 
-// clearing of the lockfile is handled by the lockfile library itself
 onExit((code) => {
   if (mode.manageAppLifecycle && mode.daemon) {
     apps.stopSync(mode.stop);
@@ -134,9 +128,8 @@ onExit((code) => {
   process.exit(code || 0);
 });
 
-lockfile.wait()
-  .then(() => info(`Starting Horticulturalist ${require('../package.json').version} ${mode.daemon ? 'daemon ' : ''}in ${mode.name} mode`))
-  .then(checks)
+info(`Starting Horticulturalist ${require('../package.json').version} ${mode.daemon ? 'daemon ' : ''}in ${mode.name} mode`);
+checks()
   .then(() => {
     fs.mkdirs(mode.deployments);
 
