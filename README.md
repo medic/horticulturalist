@@ -30,6 +30,10 @@ Pick one mode to run in:
     --medic-os
         Only of interest to those who deploy using MedicOS. Deploys apps using
         the MedicOS daemon.
+        When running this from within medic-os, if horticulturalist, medic-api,
+        etc are already installed and running, you need to stop them using 
+        `svc-stop` before running this.  You will also need to delete directories
+        where medic-api/medic-sentinel are installed before running this.
 
 You can also specify a deployment action to perform:
 
