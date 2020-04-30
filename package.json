@@ -15,7 +15,7 @@
     "eslint": "eslint src/**/* tests/**/*",
     "test": "npm run eslint && npm run unit-tests && npm run int-tests",
     "unit-tests": "TESTING=1 mocha ./tests/unit/**.js",
-    "int-tests": "mocha --full-trace -s 10000 -t 65536 ./tests/int/tests/**.js"
+    "int-tests": "mocha --full-trace -s 90000 -t 65536 ./tests/int/tests/**.js"
   },
   "dependencies": {
     "debug": "^3.1.0",
