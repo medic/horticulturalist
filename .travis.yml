@@ -1,4 +1,5 @@
 language: node_js
+sudo: true
 
 node_js:
   - "12"
@@ -18,4 +19,5 @@ env:
   - HORTI_TEST_BUILDS=http://admin:pass@localhost:5984/test-medic-builds
 
 before_install:
+ - sudo apt-get install xsltproc
  - ./tests/env-prep.sh
