@@ -75,8 +75,8 @@ const downloadBuild = deployDoc => {
 
 const extractDdocs = ddoc => {
   const compiledDdocs = ddoc._attachments &&
-                        ddoc._attachments['ddocs/compiled.json'] ||
-                        ddoc._attachments['ddocs/medic.json'];
+                        (ddoc._attachments['ddocs/compiled.json'] ||
+                         ddoc._attachments['ddocs/medic.json']);
 
   if (!compiledDdocs) {
     debug('No extra ddocs to extract');
