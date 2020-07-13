@@ -16,7 +16,7 @@ describe('Bootstrapping', () => {
       .then(() => hortiUtils.start([
         '--install=test:test-app-1:1.0.0',
         '--no-daemon',
-        '--test'], { waitUntil: true }))
+        '--test'], { waitUntil: true, log: true }))
       .then(() => dbUtils.appDb().get('_design/test-app-1'))
       .then(ddoc => {
         assert.equal(ddoc.deploy_info.user, 'horticulturalist cli');
@@ -29,7 +29,7 @@ describe('Bootstrapping', () => {
       .then(() => hortiUtils.start([
         '--install=@test:test-app-1:release',
         '--no-daemon',
-        '--test'], { waitUntil: true }))
+        '--test'], { waitUntil: true, log: true }))
       .then(() => dbUtils.appDb().get('_design/test-app-1'))
       .then(ddoc => {
         assert.equal(ddoc.deploy_info.user, 'horticulturalist cli');

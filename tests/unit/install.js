@@ -128,6 +128,26 @@ describe('Installation flow', () => {
         });
       });
     });
+
+    it('should work read ddocs from medic.json attachment', () => {
+      const newStagedMainDdoc = {
+        _id: '_design/:staged:medic',
+        _attachments: {
+          'ddocs/medic.json': {
+            data: Buffer.from(JSON.stringify(compiled))
+          }
+        }
+      };
+
+      DB.app.bulkDocs.resolves([]);
+
+      return install._extractDdocs(newStagedMainDdoc).then(() => {
+        DB.app.bulkDocs.callCount.should.equal(1);
+        DB.app.bulkDocs.args[0][0].should.deep.equal([{
+          _id: '_design/:staged:medic-test'
+        }, newStagedMainDdoc]);
+      });
+    });
   });
 
   describe('Warming views', () => {
