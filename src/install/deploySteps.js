@@ -141,7 +141,7 @@ module.exports = (mode, deployDoc) => {
               if (mode.daemon) {
                 return Promise.resolve()
                   .then(() => info('Stopping all apps…', apps.APPS))
-                  .then(() => apps.stop(mode.stop))
+                  //.then(() => apps.stop(mode.stop))
                   .then(() => info('All apps stopped.'));
               }
             });
@@ -156,16 +156,16 @@ module.exports = (mode, deployDoc) => {
         if (appsToDeploy) {
           return Promise.resolve()
             .then(() => info('Updating symlinks for changed apps…', changedApps))
-            .then(() => updateSymlink(changedApps))
-            .then(() => info('Symlinks updated.'));
+            //.then(() => updateSymlink(changedApps))
+            .then(() => info("We don't use symlinks in this docker trial. Great place to find out if its self-hosted or medic-hosted and send a call to k8s API or docker-compose"));
         }
       })
 
       .then(() => {
         if (mode.daemon && (appsToDeploy || firstRun)) {
-          return startApps(mode).then(() => {
-            return changedApps;
-          });
+          //return startApps(mode).then(() => {
+          return changedApps;
+          //});
         }
       });
   };
