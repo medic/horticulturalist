@@ -57,10 +57,7 @@ const downloadBuild = deployDoc => {
     .catch(err => {
       if (err && err.status === 404) {
         error(`Failed to find a build to download for [${docKey}]. Aborting install.`);
-        return cleanupDeployDoc(deployDoc)
-          .then(() => {
-            throw err;
-          });
+        return cleanupDeployDoc(deployDoc).reject(err);
       }
       throw err;
     })
