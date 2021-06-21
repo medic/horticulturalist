@@ -76,6 +76,52 @@ describe('Installation flow', () => {
           actual.deploy_info.version.should.equal('1.0.0');
         });
     });
+    it('Tries to download a build that does not exist on the builds server', () => {
+      DB.builds.get.rejects({
+        error: 'not_found',
+        reason: 'missing',
+        status: 404,
+        name: 'not_found',
+        message: 'missing',
+        docId: 'horti-upgrade'
+      });
+      DB.app.put.resolves({rev: '1-somerev'});
+      const utilsGetStagedDdocs = sinon.stub(utils, 'getStagedDdocs');
+      const utilsUpdate = sinon.stub(utils, 'update');
+      return install._downloadBuild(deployDoc())
+        .then(() => chai.assert.fail('should have thrown'))
+        .catch(() => {
+          DB.app.put.callCount.should.equal(1);
+          const actual = DB.app.put.args[0][0];
+          actual._id.should.equal('horti-upgrade');
+          actual._deleted.should.equal(true);
+          actual.should.not.have.property('deploy_info');
+          DB.app.viewCleanup.callCount.should.equal(1);
+
+          utilsGetStagedDdocs.callCount.should.equal(0);
+          utilsUpdate.callCount.should.equal(0);
+        });
+    });
+    it('Tries to download a build from broken staging database', () => {
+      DB.builds.get.rejects({
+        error: 'server_error',
+        reason: 'database corrupt',
+        status: 500,
+        name: 'server_error',
+        docId: 'horti-upgrade'
+      });
+      const utilsGetStagedDdocs = sinon.stub(utils, 'getStagedDdocs');
+      const utilsUpdate = sinon.stub(utils, 'update');
+      return install._downloadBuild(deployDoc())
+        .then(() => chai.assert.fail('should have thrown'))
+        .catch(() => {
+          DB.app.put.callCount.should.equal(0);
+          DB.app.viewCleanup.callCount.should.equal(0);
+
+          utilsGetStagedDdocs.callCount.should.equal(0);
+          utilsUpdate.callCount.should.equal(0);
+        });
+    });
   });
 
   describe('Extract ddocs', () => {

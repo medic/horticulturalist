@@ -51,8 +51,19 @@ const findDownloadedBuild = deployDoc => {
 };
 
 const downloadBuild = deployDoc => {
-  debug(`Downloading ${keyFromDeployDoc(deployDoc)}, this may take some time…`);
-  return DB.builds.get(keyFromDeployDoc(deployDoc), { attachments: true, binary: true })
+  const docKey = keyFromDeployDoc(deployDoc);
+  debug(`Downloading ${docKey}, this may take some time…`);
+  return DB.builds.get(docKey, { attachments: true, binary: true })
+    .catch(err => {
+      if (err && err.status === 404) {
+        error(`Failed to find a build to download for [${docKey}]. Aborting install.`);
+        return cleanupDeployDoc(deployDoc)
+          .then(() => {
+            throw err;
+          });
+      }
+      throw err;
+    })
     .then(deployable => {
       debug(`Got ${deployable._id}, staging`);
 
@@ -136,20 +147,22 @@ const preCleanup = () => {
     });
 };
 
+const cleanupDeployDoc = (deployDoc) => {
+  debug('Delete deploy ddoc');
+  deployDoc._deleted = true;
+  return DB.app.put(deployDoc)
+  .then(() => {
+    debug('Cleanup old views');
+    return DB.app.viewCleanup();
+  });
+};
+
 const postCleanup = (ddocWrapper, deployDoc) => {
   return Promise.all([
         removeOldVersion(ddocWrapper),
         clearStagedDdocs()
       ])
-      .then(() => {
-        debug('Delete deploy ddoc');
-        deployDoc._deleted = true;
-        return DB.app.put(deployDoc);
-      })
-      .then(() => {
-        debug('Cleanup old views');
-        return DB.app.viewCleanup();
-      });
+      .then(cleanupDeployDoc(deployDoc));
 };
 
 const performDeploy = (mode, deployDoc, ddoc, firstRun) => {
