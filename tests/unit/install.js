@@ -96,8 +96,8 @@ describe('Installation flow', () => {
           actual._id.should.equal('horti-upgrade');
           actual._deleted.should.equal(true);
           actual.should.not.have.property('deploy_info');
-          DB.app.viewCleanup.callCount.should.equal(1);
 
+          DB.app.viewCleanup.callCount.should.equal(0);
           utilsGetStagedDdocs.callCount.should.equal(0);
           utilsUpdate.callCount.should.equal(0);
         });
