@@ -155,7 +155,7 @@ const postCleanup = (ddocWrapper, deployDoc) => {
         removeOldVersion(ddocWrapper),
         clearStagedDdocs()
       ])
-      .then(deleteDeployDoc(deployDoc))
+      .then(() => deleteDeployDoc(deployDoc))
       .then(() => {
         debug('Cleanup old views');
         return DB.app.viewCleanup();
