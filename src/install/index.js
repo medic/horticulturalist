@@ -55,7 +55,7 @@ const downloadBuild = deployDoc => {
   debug(`Downloading ${docKey}, this may take some time…`);
   return DB.builds.get(docKey, { attachments: true, binary: true })
     .catch(err => {
-      if (err && err.status === 404) {
+      if (err && err.status && err.status >= 400 && err.status < 500) {
         error(`Failed to find a build to download for [${docKey}]. Aborting install.`);
         return deleteDeployDoc(deployDoc).reject(err);
       }
